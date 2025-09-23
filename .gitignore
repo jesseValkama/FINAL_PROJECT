@@ -1,0 +1,46 @@
+# Build folders
+/out/
+/bin/
+/lib/
+
+# Visual Studio
+*.vcxproj*
+*.sln
+*.user
+*.obj
+*.pdb
+*.log
+.vs/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.venv/
+.env
+.mypy_cache/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# DLLs and executables
+*.dll
+*.exe
+
+# Libraries
+/libtorch/
+/opencv/
+
+# Weights
+/application_project/weights/working.pth
+/application_project/weights/lenet_cifar10.pth
+/application_project/weights/resnet_cifar10.pth
+/application_project/weights/resnet18_mnist.pth
+
+# OS junk
+.DS_Store
+Thumbs.db
