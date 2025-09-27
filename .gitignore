@@ -11,6 +11,7 @@
 *.pdb
 *.log
 .vs/
+.vscode/
 
 # CMake
 CMakeFiles/
@@ -31,15 +32,8 @@ __pycache__/
 *.dll
 *.exe
 
-# Libraries
-/libtorch/
-/opencv/
-
 # Weights
-/application_project/weights/working.pth
-/application_project/weights/lenet_cifar10.pth
-/application_project/weights/resnet_cifar10.pth
-/application_project/weights/resnet18_mnist.pth
+/research_py/weights/
 
 # OS junk
 .DS_Store

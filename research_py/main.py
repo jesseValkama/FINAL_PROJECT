@@ -1,14 +1,18 @@
-import numpy as np
-import torch
+from src.train.train_loop import run_loop 
+from src.settings import Settings
 
 
 def main() -> None:
     """
-    comment
-    """
+    This is the main file, run everything from here
+    Uses both command-line arguments and also a settings.yaml
 
-    print(np.array([2,3]))
-    print(torch.tensor([2,3]))
+    Command-line args:
+
+    """
+    settings = Settings()
+
+    run_loop(settings=settings)
 
 
 if __name__ == "__main__":

@@ -5,52 +5,41 @@ Paper is available here (haven't started yet)
 
 ## Description
 
-An in-depth paragraph about your project and overview of use.
+-
 
 ## Getting Started
 
 ### Dependencies
 
-* Describe any prerequisites, libraries, OS version, etc., needed before installing program.
-* ex. Windows 10
+* PACKAGES (TODO)
+* CUDA 12.6?
 
 ### Installing
 
-* How/where to download your program
-* Any modifications needed to be made to files/folders
+-
 
 ### Executing program
 
-* How to run the program
-* Step-by-step bullets
-```
-code blocks for commands
-```
+-
 
 ## Help
 
-Any advise for common problems or issues.
-```
-command to run if program contains helper info
-```
+-
 
 ## Authors
 
-Contributors names and contact info
-
-ex. Dominique Pizzie  
-ex. [@DomPizzie](https://twitter.com/dompizzie)
-
-## Version History
-
-* 0.2
-    * Various bug fixes and optimizations
-    * See [commit change]() or See [release history]()
-* 0.1
-    * Initial Release
+Jesse Vakama
 
 ## Acknowledgments
 
-Inspiration, code snippets, etc.
+
+MODELS
+* [ULTRALYTICS YOLO11](https://github.com/ultralytics/ultralytics)
+
+DATASETS (omnifall annotations for le2i, more might be added at some point)
+* [OMNIFALL](https://arxiv.org/abs/2505.19889)
+* [LE2I](https://search-data.ubfc.fr/imvia/FR-13002091000019-2024-04-09_Fall-Detection-Dataset.html)
+
+OTHER
 * [README TEMPLATE](https://gist.github.com/DomPizzie/7a5ff55ffa9081f2de27c315f5018afc)
-* [ULTRALYTICS](https://docs.ultralytics.com/)
+
