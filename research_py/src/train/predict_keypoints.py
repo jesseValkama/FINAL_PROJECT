@@ -1,5 +1,6 @@
 import cv2 as cv
 import numpy as np
+import os
 from pathlib import Path
 from pytorch_grad_cam import GradCAM, GradCAMPlusPlus
 from pytorch_grad_cam.utils.image import show_cam_on_image
@@ -49,13 +50,22 @@ def kp_yolo_gradcam() -> None:
         cv.destroyAllWindows()
 
 
-def kp_yolo(videos: torch.Tensor, model_name: str = "yolo11s-pose.pt") -> torch.Tensor:
+def kp_yolo(settings, videos: torch.Tensor, model_name: str = "yolo11s-pose.pt") -> torch.Tensor:
     """
     Function to get keypoints from yolo
     """
-    model = YOLO("research_py/weights/ultralytics" + model_name)
-    for vid in videos:
-        results = model(vid)
-        print(results)
+    yolo_path = os.path.join(settings.weights_path, "ultralytics", model_name)
+    model = YOLO(yolo_path)
+    for idx, _ in enumerate(videos):
+        results = model(videos[:,idx,:,:,:])
+        for result in results:
+            out_img = result.plot()
+            cv.imshow("out_img", out_img)
+            cv.waitKey(0)
+            cv.destroyAllWindows()
 
     return torch.Tensor([1,2])
+
+
+if __name__ == "__main__":
+    raise NotImplementedError("Usage: python main.py args")

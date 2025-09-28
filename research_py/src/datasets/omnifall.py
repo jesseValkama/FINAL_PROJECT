@@ -21,7 +21,8 @@ def get_omnifall_datasets(settings) -> Tuple[torch.utils.data.Dataset, torch.uti
 
     ds_info = load_omnifall_info(settings)
     pre_transforms = transforms.Compose([
-        transforms.Resize((224, 224))
+        transforms.Resize((settings.image_size, settings.image_size))
+        # transforms.Normalize(settings.mean, settings.standard_deviation, inplace=True)
     ])
     aug_transforms = transforms.Compose([])
 
@@ -43,7 +44,7 @@ class Omnifall(torch.utils.data.Dataset):
         self._video_labels = ds_info["labels"]
         self._settings = settings
 
-        self._video_len = 20
+        self._video_len = settings.video_length
         
         self._pre_transforms = pre_transforms
         self._aug_transforms = aug_transforms
@@ -60,14 +61,13 @@ class Omnifall(torch.utils.data.Dataset):
         assert video_path.is_file(), f"path to video is invalid {video_path_str}"
 
         clip = torch.Tensor(self._load_video(video_path))
-        clip = clip.permute([0, 3, 1, 2])
+        clip = clip.permute([0, 3, 1, 2]).contiguous().to(torch.float)
+        clip.div_(255.0)
         clip = self._pre_transforms(clip)
 
-        # todo: fix the labels
         label = self._video_labels[idx]
-        label = torch.Tensor(label)
+        label = torch.Tensor([label]).to(torch.float)
 
-        print("clip: ", clip.shape, "labels: ", label)
         return clip, label
     
     def _get_ext(self, idx) -> str:

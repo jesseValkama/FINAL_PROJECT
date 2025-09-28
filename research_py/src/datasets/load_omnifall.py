@@ -1,6 +1,7 @@
 from datasets import load_dataset
+import numpy as np
 import pandas as pd
-from typing import Dict 
+from typing import Dict
 
 
 def load_omnifall_info(settings) -> Dict:
@@ -61,8 +62,7 @@ def load_omnifall_info(settings) -> Dict:
             set_paths = merged_df["path"].to_list()
             set_datasets = merged_df["dataset"].to_list()
             set_times = merged_df[["start", "end"]].to_numpy()
-            
-            set_labels = merged_df["label"].to_numpy()
+            set_labels = merged_df["label"].to_numpy(dtype=np.uint8)
             assert len(set_paths) == len(set_labels), "the data is corrupt"
 
             ds_info[subset_name]["paths"].extend(set_paths)

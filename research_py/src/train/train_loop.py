@@ -37,8 +37,7 @@ def train(train_loader, val_loader, settings) -> None:
     for data in train_loader:
         vids, labels = data
         # vids, labels = vids.to(dev), labels.to(dev)
-        kps = kp_yolo(vids)
-        print(kps)
+        kps = kp_yolo(settings, vids)
 
 
 def validate(test_loader, settings) -> None:
