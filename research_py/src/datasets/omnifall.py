@@ -66,7 +66,7 @@ class Omnifall(torch.utils.data.Dataset):
         clip = self._pre_transforms(clip)
 
         label = self._video_labels[idx]
-        label = torch.Tensor([label]).to(torch.float)
+        label = torch.Tensor([label]).to(torch.long)
 
         return clip, label
     

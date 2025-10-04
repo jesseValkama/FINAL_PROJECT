@@ -32,8 +32,8 @@ __pycache__/
 *.dll
 *.exe
 
-# Weights
-/research_py/weights/
+# Weights and runtime
+/research_py/weights
 
 # OS junk
 .DS_Store
