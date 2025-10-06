@@ -1,5 +1,4 @@
 from src.settings import Settings
-import torch
 from torch import nn
 
 
@@ -7,6 +6,12 @@ class LSTM(nn.Module):
     def __init__(self, settings: Settings):
         super(LSTM, self).__init__()
         self._settings = settings
+
+        self._normalise = nn.Linear(
+            in_features = settings.lstm_input_size,
+            out_features = settings.lstm_input_size,
+            bias = True
+        )
         self._lstm = nn.LSTM(
             input_size = settings.lstm_input_size,
             hidden_size = settings.lstm_hidden_size,
@@ -17,14 +22,13 @@ class LSTM(nn.Module):
             batch_first=True
             )
         self._classifier = nn.Linear(
-            in_features=settings.lstm_hidden_size,
+            in_features=settings.lstm_hidden_size if not settings.lstm_bidirectional else settings.lstm_hidden_size * 2,
             out_features=len(settings.dataset_labels),
             bias=True
             )
         
     def forward(self, x):
-        for idx in range(x.shape[1]):
-            out, _ = self._lstm(x[:,idx,:])
-
-        out = self._classifier(out)
-        return out
+        x = self._normalise(x)
+        x, _ = self._lstm(x) 
+        x = self._classifier(x[:,-1,:])
+        return x

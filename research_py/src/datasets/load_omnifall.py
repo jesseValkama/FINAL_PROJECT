@@ -1,6 +1,7 @@
 from datasets import load_dataset
 import numpy as np
 import pandas as pd
+import random
 from typing import Dict
 
 
@@ -31,22 +32,22 @@ def load_omnifall_info(settings) -> Dict:
 
     ds_info = {
         "train": {
-            "paths": list(),
-            "datasets": list(),
-            "times": list(),
-            "labels": list()
+            "paths": None,
+            "datasets": None,
+            "times": None,
+            "labels": None 
         },
         "validation": {
-            "paths": list(),
-            "datasets": list(),
-            "times": list(),
-            "labels": list()
+            "paths": None,
+            "datasets": None,
+            "times": None,
+            "labels": None 
         },
         "test": {
-            "paths": list(),
-            "datasets": list(),
-            "times": list(),
-            "labels": list()
+            "paths": None,
+            "datasets": None,
+            "times": None,
+            "labels": None 
         }
     }    
 
@@ -57,6 +58,8 @@ def load_omnifall_info(settings) -> Dict:
 
             merged_df = pd.merge(subset_df, labels_df, on="path", how="left")
             merged_df = merged_df[merged_df["dataset"] == "le2i"]
+            merged_df = merged_df[:2]
+
             print(f"  {subset_name} split: {len(merged_df)} clips with labels")
 
             set_paths = merged_df["path"].to_list()
@@ -65,10 +68,10 @@ def load_omnifall_info(settings) -> Dict:
             set_labels = merged_df["label"].to_numpy(dtype=np.uint8)
             assert len(set_paths) == len(set_labels), "the data is corrupt"
 
-            ds_info[subset_name]["paths"].extend(set_paths)
-            ds_info[subset_name]["datasets"].extend(set_datasets)
-            ds_info[subset_name]["times"].extend(set_times)
-            ds_info[subset_name]["labels"].extend(set_labels)
+            ds_info[subset_name]["paths"] = set_paths
+            ds_info[subset_name]["datasets"] = set_datasets
+            ds_info[subset_name]["times"] = set_times
+            ds_info[subset_name]["labels"] = set_labels
 
     return ds_info
 

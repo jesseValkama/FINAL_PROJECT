@@ -57,7 +57,7 @@ def train(train_loader: DataLoader, val_loader: DataLoader, writer: SummaryWrite
     lstm = LSTM(settings=settings)
     lstm = lstm.to(settings.train_dev)
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.0)
     optimiser = torch.optim.AdamW(lstm.parameters(), lr=settings.learning_rate, weight_decay=settings.weight_decay)
     cosine_annealing = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, settings.max_epochs)
 
@@ -67,15 +67,18 @@ def train(train_loader: DataLoader, val_loader: DataLoader, writer: SummaryWrite
     early_stop = EarlyStop(settings.min_epochs, settings.early_stop_tries)
 
     start_time = time.time()
-    for epoch in range(settings.max_epochs):
+    for epoch in range(1, settings.max_epochs+1):
 
         print(f"Starting epoch: {epoch}")
         training_loss = 0.0
+        train_correct = 0.0
+        train_total = 0.0
+        lstm.train()
 
         for i, (vids, labels) in enumerate(train_loader):
             
             # vids are automatically moved to the correct dev by the cnn model
-            labels = labels.to(settings.train_dev)
+            labels = labels.to(settings.train_dev).view(-1)
             kps = kp_yolo(yolo, vids, settings)
 
             kp_process()
@@ -83,16 +86,22 @@ def train(train_loader: DataLoader, val_loader: DataLoader, writer: SummaryWrite
             optimiser.zero_grad()
 
             outputs = lstm(kps)
-            loss = criterion(outputs, labels.view(-1))
+            idxs = torch.argmax(outputs, dim=1)
+            loss = criterion(outputs, labels)
             loss.backward()
             optimiser.step()
             iter_loss = loss.item()
             assert not math.isnan(iter_loss), "Training is unstable, change settings"
             training_loss += iter_loss
 
-        training_loss /= i
+            for idx in range(len(idxs)):
+                train_total += 1.0
+                if idxs[idx] == labels[idx]:
+                    train_correct += 1.0
+
+        training_loss /= (i + 1)
         print("The training loss is: ", training_loss)
-        print("The training accuracy is: ")
+        print("The training accuracy is: ", train_correct / train_total)
 
         if epoch % settings.validation_interval == 0 and epoch != 0:
             val_loss = validate(lstm, yolo, val_loader, writer, criterion, settings)
@@ -101,7 +110,8 @@ def train(train_loader: DataLoader, val_loader: DataLoader, writer: SummaryWrite
                 best_val_loss = val_loss
                 improvement = True
                 print("The model improved")
-                torch.save(lstm, settings.work_model + ".pth")
+                save_path = os.path.join(settings.weights_path, settings.work_model + ".pth")
+                torch.save(lstm, save_path)
             if early_stop(epoch, improvement):
                 break
                 
@@ -122,7 +132,11 @@ def validate(lstm: LSTM, yolo, val_loader: DataLoader, writer: SummaryWriter, cr
     Returns:
 
     """
+    lstm.eval()
     validation_loss = 0.0
+    val_total = 0.0
+    val_correct = 0.0
+
     for i, (videos, labels) in enumerate(val_loader):
         labels = labels.to(settings.train_dev)
         kps = kp_yolo(yolo, videos, settings)
@@ -130,14 +144,20 @@ def validate(lstm: LSTM, yolo, val_loader: DataLoader, writer: SummaryWriter, cr
         kp_process()
 
         outputs = lstm(kps)
+        idxs = torch.argmax(outputs, dim=1)
         loss = criterion(outputs, labels.view(-1))
         iter_loss = loss.item()
         assert not math.isnan(iter_loss), "validation is unstable, change settings"
         validation_loss += iter_loss
 
-    validation_loss /= i
+        for idx in range(len(idxs)):
+            val_total += 1.0
+            if idxs[idx] == labels[idx]:
+                val_correct += 1.0
+
+    validation_loss /= (i + 1)
     print("The validation loss is: ", validation_loss)
-    print("The validation accuracy is: ")
+    print("The validation accuracy is: ", val_correct / val_total)
 
     return validation_loss
 

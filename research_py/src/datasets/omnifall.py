@@ -3,12 +3,13 @@ import numpy as np
 import os
 from pathlib import Path
 from src.datasets.load_omnifall import load_omnifall_info
+from src.settings import Settings
 import torch
 from torchvision import transforms
 from typing import Tuple, List
 
 
-def get_omnifall_datasets(settings) -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset, torch.utils.data.Dataset]:
+def get_omnifall_datasets(settings: Settings) -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset, torch.utils.data.Dataset]:
     """
     Function for settings up Omnifall datasets
     Setup transforms in this function
@@ -37,7 +38,7 @@ class Omnifall(torch.utils.data.Dataset):
     Class for handling Omnifall, used by a torch Dataloader
     """
     
-    def __init__(self, ds_info: dict, settings, pre_transforms: transforms.Compose, aug_transforms: transforms.Compose = None) -> None:
+    def __init__(self, ds_info: dict, settings: Settings, pre_transforms: transforms.Compose, aug_transforms: transforms.Compose = None) -> None:
         self._video_paths = ds_info["paths"]
         self._video_datasets =  ds_info["datasets"]
         self._video_times = ds_info["times"] 
@@ -78,7 +79,7 @@ class Omnifall(torch.utils.data.Dataset):
             case _:
                 raise RuntimeError(f"Dataset not implemented yet ({dataset})")
             
-    def _load_video(self, video_path: Path) -> List:
+    def _load_video(self, video_path: Path) -> np.ndarray:
         """
         Function for loading videos, since the default torch codec doesn't work
         due to le2i videos having different fps and sizes and omnifall dataset

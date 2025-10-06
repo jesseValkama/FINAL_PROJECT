@@ -8,6 +8,9 @@ def main() -> None:
     Uses both command-line arguments and also a settings.yaml
 
     Command-line args:
+        train: 0 | 1
+        test: 0 | 1
+        inference: 0 | 1
 
     """
     settings = Settings()

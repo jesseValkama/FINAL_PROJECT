@@ -63,21 +63,21 @@ def kp_yolo(model, videos: torch.Tensor, settings: Settings) -> torch.Tensor:
 
     """
     keypoints = torch.Tensor([]).to(settings.train_dev)
-    for idx in range(videos.shape[1]):
-        results = model.predict(videos[:,idx,:,:,:], verbose=False, imgsz=settings.image_size, device=settings.train_dev)
+    for frame in range(videos.shape[1]):
+        results = model.predict(videos[:,frame,:,:,:], verbose=False, imgsz=settings.image_size, device=settings.train_dev, half=True)
         batch_wise = torch.Tensor([]).to(settings.train_dev)
         for result in results:
             kps = result.keypoints.xyn
             if kps.shape[0] != 0:
-                # > 1 detections mess up the entire pipeline
+                # > 1 detections mess up the entire pipeline: all datasets contain a single person, 1 detection = failed nms
                 kps = kps[0] if kps.shape[0] > 1 else kps # hack fix even for me
                 batch_wise = torch.cat((batch_wise, kps.view(1, -1)), dim=0)
             else:
                 # adding a tensor of zeros for if no people / detections to keep lengths the same
-                batch_wise = torch.cat((batch_wise, torch.zeros((1, 2 * 17), device=settings.train_dev)), dim=0) # TODO: fix hardcode
-        batch_wise.unsqueeze_(1)
+                batch_wise = torch.cat((batch_wise, torch.zeros((1, kps.shape[-2] * kps.shape[-1]), device=settings.train_dev)), dim=0)
+        batch_wise.unsqueeze_(1) # (bs, xy) -> (bs, seq, xy)
         keypoints = torch.cat((keypoints, batch_wise), dim=1)
-    return keypoints
+    return (keypoints - 0.5) * 2
 
 
 if __name__ == "__main__":
