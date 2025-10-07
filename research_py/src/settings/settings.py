@@ -4,6 +4,21 @@ from typing import List
 class Settings:
 
     def __init__(self):
+        
+        """
+        1.9 val, 1.63 train with ALL, 0.05 SMOOTH, 0.3 DROPOUT, 0.0005 DECAY, 128 HS
+        1.87 val, 1.5 train with ALL, 0.0 SMOOTH, 0.3 DROPOUT, 0.0005 DECAY, 64 HS
+
+        would augmentations even help? is lstm just not good enough?
+        
+        loss needs to be more dependent on the loss for fall and fallen
+
+        CURRENT ASSUMPTIONS:
+            HIGHER BATCH_SIZE SHOULD STABILISE
+            PERHAPS SLIGHTLY HIHGER RES FOR MORE PRECISE PREDICTIONS
+            LOWER HIDDEN SIZE SEEMS TO PREVENT OVERFITTING (HIGHER DROPOUT TOO?)
+        """
+
         self._train = True
         self._test = True
         self._inference = True
@@ -18,29 +33,33 @@ class Settings:
         self._test_model = "test"
         self._inference_model = "inference"
 
-        self._train_batch_size = 16
-        self._val_batch_size = 16
-        self._test_batch_size = 16
+        self._train_batch_size = 12
+        self._val_batch_size = 12
+        self._test_batch_size = 12
 
         self._image_size = 320
         self._fps = 5 # fps for loading the videos, then later flatten according to video_length 
-        self._video_length = 15 # frames
+        self._video_length = 12 # frames
 
-        self._num_workers = 0
+        self._num_workers = 4
 
         self._lstm_input_size = 17 * 2
         self._lstm_hidden_size = 64 
-        self._lstm_num_layers = 1
+        self._lstm_num_layers = 2
         self._lstm_bias = True
-        self._lstm_dropout_prob = 0.0
+        self._lstm_dropout_prob = 0.5
         self._lstm_bidirectional = True # enables bi-lstm
 
         self._min_epochs = 20
-        self._early_stop_tries = 6
         self._max_epochs = 150
-        self._learning_rate = 0.001
-        self._weight_decay = 0.0000
-        self._validation_interval = 1000
+        self._early_stop_tries = 12
+        self._validation_interval = 6
+
+        self._learning_rate = 0.002
+        self._weight_decay = 0.0005
+        self._label_smoothing = 0.00
+        self._cls_weights_factor = 1
+        self._cls_ignore_thresh = 10
 
         self._amp = False # TODO: implement
         self._async_transfers = False # TODO: implement
@@ -175,6 +194,18 @@ class Settings:
     @property
     def weight_decay(self) -> float:
         return self._weight_decay
+    
+    @property
+    def label_smoothing(self) -> float:
+        return self._label_smoothing
+    
+    @property
+    def cls_weight_factor(self) -> int:
+        return self._cls_weights_factor
+    
+    @property
+    def cls_ignore_thresh(self) -> int:
+        return self._cls_ignore_thresh
     
     @property
     def validation_interval(self) -> int:

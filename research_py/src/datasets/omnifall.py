@@ -2,14 +2,13 @@ import av
 import numpy as np
 import os
 from pathlib import Path
-from src.datasets.load_omnifall import load_omnifall_info
 from src.settings import Settings
 import torch
 from torchvision import transforms
-from typing import Tuple, List
+from typing import Tuple, Dict
 
 
-def get_omnifall_datasets(settings: Settings) -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset, torch.utils.data.Dataset]:
+def get_omnifall_datasets(ds_info: Dict, settings: Settings) -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset, torch.utils.data.Dataset]:
     """
     Function for settings up Omnifall datasets
     Setup transforms in this function
@@ -19,8 +18,6 @@ def get_omnifall_datasets(settings: Settings) -> Tuple[torch.utils.data.Dataset,
     Returns:
 
     """
-
-    ds_info = load_omnifall_info(settings)
     pre_transforms = transforms.Compose([
         transforms.Resize((settings.image_size, settings.image_size))
         # transforms.Normalize(settings.mean, settings.standard_deviation, inplace=True)

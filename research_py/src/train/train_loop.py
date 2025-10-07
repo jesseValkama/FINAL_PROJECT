@@ -3,15 +3,16 @@ import math
 import numpy as np
 import os
 from src.datasets.get_data_loader import get_data_loader
+from src.datasets.load_omnifall import load_omnifall_info
 from src.datasets.omnifall import get_omnifall_datasets
 from src.models.lstm import LSTM
 from src.settings import Settings
-from src.train.early_stop import EarlyStop
 from src.train.predict_keypoints import kp_yolo
 from src.train.process_keypoints import kp_process
+from src.utils.balance import get_weight_INS
+from src.utils.early_stop import EarlyStop
 import time
 import torch
-from torch.amp import GradScaler, autocast
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -30,19 +31,21 @@ def run_loop(settings: Settings) -> None:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     writer = SummaryWriter("train".format(timestamp))
 
-    train_set, val_set, test_set = get_omnifall_datasets(settings)
+    ds_info = load_omnifall_info(settings)
+    samples = ds_info["train"]["samples"]
+    train_set, val_set, test_set = get_omnifall_datasets(ds_info, settings)
 
     if settings.train:
         train_loader = get_data_loader(train_set, settings.train_batch_size, True, settings.num_workers)
         val_loader = get_data_loader(val_set, settings.val_batch_size, True, settings.num_workers)
-        train(train_loader, val_loader, writer, settings)
+        train(train_loader, val_loader, samples, writer, settings)
 
     if settings.test:
         test_loader = get_data_loader(test_set, settings.test_batch_size, True, settings.num_workers)
         test(test_loader, writer, settings)
 
 
-def train(train_loader: DataLoader, val_loader: DataLoader, writer: SummaryWriter, settings: Settings) -> None:
+def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray, writer: SummaryWriter, settings: Settings) -> None:
     """
     Training fn that calls validate
 
@@ -57,7 +60,12 @@ def train(train_loader: DataLoader, val_loader: DataLoader, writer: SummaryWrite
     lstm = LSTM(settings=settings)
     lstm = lstm.to(settings.train_dev)
 
-    criterion = nn.CrossEntropyLoss(label_smoothing=0.0)
+    weights = torch.Tensor(get_weight_INS(samples, settings.cls_ignore_thresh, settings.cls_weight_factor)).to(settings.train_dev)
+    print("The weights are:")
+    for i in range(len(settings.dataset_labels)):
+        print(f"  {settings.dataset_labels[i]}: {weights[i]}")
+
+    criterion = nn.CrossEntropyLoss(weight=weights, label_smoothing=settings.label_smoothing)
     optimiser = torch.optim.AdamW(lstm.parameters(), lr=settings.learning_rate, weight_decay=settings.weight_decay)
     cosine_annealing = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, settings.max_epochs)
 

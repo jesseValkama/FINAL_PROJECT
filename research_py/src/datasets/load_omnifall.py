@@ -2,10 +2,11 @@ from datasets import load_dataset
 import numpy as np
 import pandas as pd
 import random
+from src.settings import Settings
 from typing import Dict
 
 
-def load_omnifall_info(settings) -> Dict:
+def load_omnifall_info(settings: Settings) -> Dict:
     """
     loads the omnifall dataset
 
@@ -35,19 +36,22 @@ def load_omnifall_info(settings) -> Dict:
             "paths": None,
             "datasets": None,
             "times": None,
-            "labels": None 
+            "labels": None,
+            "samples": None
         },
         "validation": {
             "paths": None,
             "datasets": None,
             "times": None,
-            "labels": None 
+            "labels": None,
+            "samples": None
         },
         "test": {
             "paths": None,
             "datasets": None,
             "times": None,
-            "labels": None 
+            "labels": None,
+            "samples": None
         }
     }    
 
@@ -58,9 +62,14 @@ def load_omnifall_info(settings) -> Dict:
 
             merged_df = pd.merge(subset_df, labels_df, on="path", how="left")
             merged_df = merged_df[merged_df["dataset"] == "le2i"]
-            merged_df = merged_df[:2]
+            #merged_df = merged_df[:100]
 
-            print(f"  {subset_name} split: {len(merged_df)} clips with labels")
+            print(f"{subset_name} split: {len(merged_df)} clips with labels")
+            set_samples = np.array([])
+            for i in range(len(settings.dataset_labels)):
+                n = len(merged_df[merged_df["label"] == i])
+                set_samples = np.append(set_samples, n)
+                print(f"  {settings.dataset_labels[i]}: {n}")
 
             set_paths = merged_df["path"].to_list()
             set_datasets = merged_df["dataset"].to_list()
@@ -72,6 +81,7 @@ def load_omnifall_info(settings) -> Dict:
             ds_info[subset_name]["datasets"] = set_datasets
             ds_info[subset_name]["times"] = set_times
             ds_info[subset_name]["labels"] = set_labels
+            ds_info[subset_name]["samples"] = set_samples
 
     return ds_info
 

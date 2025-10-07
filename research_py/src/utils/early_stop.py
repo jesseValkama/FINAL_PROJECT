@@ -16,16 +16,24 @@ class EarlyStop:
         Returns:
             bool: Whether to stop training
         """
-        if not improvement:
-            self._counter += 1
+        if improvement:
+            self._counter = 0
+            return False
+
+        self._counter += 1
+        status_update = f"The model did not improve"
+
+        if epoch >= self._patience:
             counter = self._counter if self._counter < self._tries else self._tries
-            print(f"The model did not improve ({counter} / {self._tries})")
+            status_update += f" ({counter}/{self._tries})"
+
+        if epoch == self._patience:
+            print("Early stopping activated")
+        print(status_update)
 
         if epoch < self._patience:
             return False
-        elif epoch == self._patience:
-            print("Early stopping activated")
-        
+                
         if self._counter == self._tries:
             print("Early stopping stopped training")
             return True
