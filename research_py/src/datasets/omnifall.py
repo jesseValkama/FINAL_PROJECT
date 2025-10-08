@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from src.settings import Settings
 import torch
-from torchvision import transforms
+from torchvision.transforms import v2
 from typing import Tuple, Dict
 
 
@@ -18,11 +18,15 @@ def get_omnifall_datasets(ds_info: Dict, settings: Settings) -> Tuple[torch.util
     Returns:
 
     """
-    pre_transforms = transforms.Compose([
-        transforms.Resize((settings.image_size, settings.image_size))
-        # transforms.Normalize(settings.mean, settings.standard_deviation, inplace=True)
+    pre_transforms = v2.Compose([
+        v2.Resize((settings.image_size, settings.image_size))
+        # v2.Normalize(settings.mean, settings.standard_deviation, inplace=True) # causes problems with yolo
     ])
-    aug_transforms = transforms.Compose([])
+    aug_transforms = v2.Compose([
+        v2.RandomHorizontalFlip((0.5)),
+        v2.RandomAdjustSharpness(0.7, 0.2),
+        v2.RandomAutocontrast(0.2)
+    ])
 
     train = Omnifall(ds_info["train"], settings, pre_transforms, aug_transforms)
     val = Omnifall(ds_info["validation"], settings, pre_transforms)
@@ -35,7 +39,7 @@ class Omnifall(torch.utils.data.Dataset):
     Class for handling Omnifall, used by a torch Dataloader
     """
     
-    def __init__(self, ds_info: dict, settings: Settings, pre_transforms: transforms.Compose, aug_transforms: transforms.Compose = None) -> None:
+    def __init__(self, ds_info: dict, settings: Settings, pre_transforms: v2.Compose, aug_transforms: v2.Compose = None) -> None:
         self._video_paths = ds_info["paths"]
         self._video_datasets =  ds_info["datasets"]
         self._video_times = ds_info["times"] 
@@ -62,6 +66,9 @@ class Omnifall(torch.utils.data.Dataset):
         clip = clip.permute([0, 3, 1, 2]).contiguous().to(torch.float)
         clip.div_(255.0)
         clip = self._pre_transforms(clip)
+
+        if self._aug_transforms:
+            clip = self._aug_transforms(clip)
 
         label = self._video_labels[idx]
         label = torch.Tensor([label]).to(torch.long)

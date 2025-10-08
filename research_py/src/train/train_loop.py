@@ -60,7 +60,10 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
     lstm = LSTM(settings=settings)
     lstm = lstm.to(settings.train_dev)
 
-    weights = torch.Tensor(get_weight_INS(samples, settings.cls_ignore_thresh, settings.cls_weight_factor)).to(settings.train_dev)
+    pre_weights = get_weight_INS(samples, settings.cls_ignore_thresh, settings.cls_weight_factor)
+    post_weights = np.array(settings.label_weights)
+    weights = torch.Tensor(pre_weights * post_weights).to(settings.train_dev)
+
     print("The weights are:")
     for i in range(len(settings.dataset_labels)):
         print(f"  {settings.dataset_labels[i]}: {weights[i]}")
