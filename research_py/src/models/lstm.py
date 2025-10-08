@@ -7,11 +7,6 @@ class LSTM(nn.Module):
         super(LSTM, self).__init__()
         self._settings = settings
 
-        self._normalise = nn.Linear(
-            in_features = settings.lstm_input_size,
-            out_features = settings.lstm_input_size,
-            bias = True
-        )
         self._lstm = nn.LSTM(
             input_size = settings.lstm_input_size,
             hidden_size = settings.lstm_hidden_size,
@@ -28,7 +23,6 @@ class LSTM(nn.Module):
             )
         
     def forward(self, x):
-        x = self._normalise(x)
         x, _ = self._lstm(x) 
         x = self._classifier(x[:,-1,:])
         return x

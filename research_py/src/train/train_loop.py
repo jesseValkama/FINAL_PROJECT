@@ -7,8 +7,8 @@ from src.datasets.load_omnifall import load_omnifall_info
 from src.datasets.omnifall import get_omnifall_datasets
 from src.models.lstm import LSTM
 from src.settings import Settings
+from src.train.predict_feature_maps import fm_yolo
 from src.train.predict_keypoints import kp_yolo
-from src.train.process_keypoints import kp_process
 from src.utils.balance import get_weight_INS
 from src.utils.early_stop import EarlyStop
 import time
@@ -54,6 +54,7 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
     Returns:
 
     """
+
     yolo_path = os.path.join(settings.weights_path, "ultralytics", settings.yolo_model)
     yolo = YOLO(yolo_path) # yolo is automatically moved to the correct dev
 
@@ -63,6 +64,7 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
     pre_weights = get_weight_INS(samples, settings.cls_ignore_thresh, settings.cls_weight_factor)
     post_weights = np.array(settings.label_weights)
     weights = torch.Tensor(pre_weights * post_weights).to(settings.train_dev)
+    # TODO: leave out the weights that are not needed
 
     print("The weights are:")
     for i in range(len(settings.dataset_labels)):
@@ -90,13 +92,12 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
             
             # vids are automatically moved to the correct dev by the cnn model
             labels = labels.to(settings.train_dev).view(-1)
-            kps = kp_yolo(yolo, vids, settings)
-
-            kp_process()
+            fms = fm_yolo(yolo, vids, settings)
+            # kps = kp_yolo(yolo, vids, settings)
 
             optimiser.zero_grad()
 
-            outputs = lstm(kps)
+            outputs = lstm(fms)
             idxs = torch.argmax(outputs, dim=1)
             loss = criterion(outputs, labels)
             loss.backward()
@@ -151,8 +152,6 @@ def validate(lstm: LSTM, yolo, val_loader: DataLoader, writer: SummaryWriter, cr
     for i, (videos, labels) in enumerate(val_loader):
         labels = labels.to(settings.train_dev)
         kps = kp_yolo(yolo, videos, settings)
-
-        kp_process()
 
         outputs = lstm(kps)
         idxs = torch.argmax(outputs, dim=1)

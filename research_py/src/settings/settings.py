@@ -43,8 +43,8 @@ class Settings:
 
         self._num_workers = 4
 
-        self._lstm_input_size = 17 * 2
-        self._lstm_hidden_size = 64 
+        self._lstm_input_size = 358400 # 17 * 2
+        self._lstm_hidden_size = 256
         self._lstm_num_layers = 2
         self._lstm_bias = True
         self._lstm_dropout_prob = 0.5
