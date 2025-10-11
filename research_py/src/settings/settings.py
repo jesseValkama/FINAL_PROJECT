@@ -28,7 +28,7 @@ class Settings:
         # applied after the weighting based on sample sizes
         self._label_weights = [1.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
-        self._yolo_model = "yolo11s-pose.pt"
+        self._yolo_model = "yolo11n-cls.pt"
         self._work_model = "work"
         self._test_model = "test"
         self._inference_model = "inference"
@@ -42,20 +42,21 @@ class Settings:
         self._video_length = 12 # frames
 
         self._num_workers = 4
-
-        self._lstm_input_size = 358400 # 17 * 2
-        self._lstm_hidden_size = 256
-        self._lstm_num_layers = 2
+        
+        self._yolo_hooks = [9]
+        self._lstm_input_size = 16
+        self._lstm_hidden_size = 32
+        self._lstm_num_layers = 1
         self._lstm_bias = True
-        self._lstm_dropout_prob = 0.5
-        self._lstm_bidirectional = False # enables bi-lstm
+        self._lstm_dropout_prob = 0.0
+        self._lstm_bidirectional = False
 
         self._min_epochs = 20
-        self._max_epochs = 150
+        self._max_epochs = 500
         self._early_stop_tries = 12
         self._validation_interval = 6
 
-        self._learning_rate = 0.002
+        self._learning_rate = 0.001
         self._weight_decay = 0.0005
         self._label_smoothing = 0.00
         self._cls_weights_factor = 1
@@ -154,7 +155,11 @@ class Settings:
     @property
     def standard_deviation(self) -> List[float]:
         return self._standard_deviation
-    
+
+    @property
+    def yolo_hooks(self) -> List[int]:
+        return self._yolo_hooks
+
     @property
     def lstm_input_size(self) -> int:
         return self._lstm_input_size

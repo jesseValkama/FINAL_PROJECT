@@ -62,7 +62,7 @@ def load_omnifall_info(settings: Settings) -> Dict:
 
             merged_df = pd.merge(subset_df, labels_df, on="path", how="left")
             merged_df = merged_df[merged_df["dataset"] == "le2i"]
-            #merged_df = merged_df[:100]
+            #merged_df = merged_df[:2]
 
             print(f"{subset_name} split: {len(merged_df)} clips with labels")
             set_samples = np.array([])
