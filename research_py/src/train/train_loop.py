@@ -1,22 +1,21 @@
-from datetime import datetime as datetime # who created this language
+from datetime import datetime
 import math
 import numpy as np
 import os
 from src.datasets.get_data_loader import get_data_loader
 from src.datasets.load_omnifall import load_omnifall_info
+from src.datasets.load_ucf101_info import load_ucf101_info
 from src.datasets.omnifall import get_omnifall_datasets
-from src.models.blocks.head import HEAD
+from src.models.efficientnet_lrcn import EfficientLRCN
 from src.settings import Settings
-from src.train.predict_feature_maps import fm_yolo
-from src.train.predict_keypoints import kp_yolo
 from src.utils.balance import get_weight_INS
 from src.utils.early_stop import EarlyStop
 import time
 import torch
+from torch.amp import autocast, GradScaler
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from ultralytics import YOLO
 
 
 def run_loop(settings: Settings) -> None:
@@ -31,17 +30,18 @@ def run_loop(settings: Settings) -> None:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     writer = SummaryWriter("train".format(timestamp))
 
-    ds_info = load_omnifall_info(settings)
+    info_fn = load_omnifall_info if settings.dataset == "omnifall" else load_ucf101_info
+    ds_info = info_fn(settings)
     samples = ds_info["train"]["samples"]
     train_set, val_set, test_set = get_omnifall_datasets(ds_info, settings)
 
     if settings.train:
-        train_loader = get_data_loader(train_set, settings.train_batch_size, True, settings.num_workers)
-        val_loader = get_data_loader(val_set, settings.val_batch_size, True, settings.num_workers)
+        train_loader = get_data_loader(train_set, settings.train_batch_size, True, settings.num_workers, settings.async_transfers)
+        val_loader = get_data_loader(val_set, settings.val_batch_size, True, settings.num_workers, settings.async_transfers)
         train(train_loader, val_loader, samples, writer, settings)
 
     if settings.test:
-        test_loader = get_data_loader(test_set, settings.test_batch_size, True, settings.num_workers)
+        test_loader = get_data_loader(test_set, settings.test_batch_size, True, settings.num_workers, settings.async_transfers)
         test(test_loader, writer, settings)
 
 
@@ -54,15 +54,8 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
     Returns:
 
     """
-
-    yolo_path = os.path.join(settings.weights_path, "ultralytics", settings.yolo_model)
-    yolo = YOLO(yolo_path) # yolo is automatically moved to the correct dev
-
-    HARD_CODED_SIZES = np.array([
-        [256, 10, 10],
-    ])
-    head = HEAD(HARD_CODED_SIZES, settings=settings)
-    head = head.to(settings.train_dev)
+    model = EfficientLRCN(settings)
+    model = model.to(settings.train_dev)
 
     pre_weights = get_weight_INS(samples, settings.cls_ignore_thresh, settings.cls_weight_factor)
     post_weights = np.array(settings.label_weights)
@@ -75,8 +68,9 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
         print(f"  {settings.dataset_labels[i]}: {weights[i]}")
 
     criterion = nn.CrossEntropyLoss(label_smoothing=settings.label_smoothing)
-    optimiser = torch.optim.AdamW(head.parameters(), lr=settings.learning_rate, weight_decay=settings.weight_decay)
+    optimiser = torch.optim.AdamW(model.parameters(), lr=settings.learning_rate, weight_decay=settings.weight_decay)
     cosine_annealing = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, settings.max_epochs)
+    scaler = GradScaler()
 
     training_loss = 0.0
     val_loss = 0.0
@@ -90,22 +84,23 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
         training_loss = 0.0
         train_correct = 0.0
         train_total = 0.0
-        head.train()
+        model.train()
 
         for i, (vids, labels) in enumerate(train_loader):
             
-            # vids are automatically moved to the correct dev by the cnn model
-            labels = labels.to(settings.train_dev).view(-1)
-            fms = fm_yolo(yolo, vids, settings)
-            # kps = kp_yolo(yolo, vids, settings)
-
+            vids, labels = vids.to(settings.train_dev, non_blocking=settings.async_transfers), labels.to(settings.train_dev, non_blocking=settings.async_transfers).view(-1)
+            
             optimiser.zero_grad()
+            
+            with autocast(device_type="cuda"):
+                outputs = model(vids)
+                loss = criterion(outputs, labels)
 
-            outputs = head(fms)
             idxs = torch.argmax(outputs, dim=1)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimiser.step()
+            scaler.scale(loss).backward()
+            scaler.step(optimiser)
+            scaler.update()
+
             iter_loss = loss.item()
             assert not math.isnan(iter_loss), "Training is unstable, change settings"
             training_loss += iter_loss
@@ -120,14 +115,14 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
         print("The training accuracy is: ", train_correct / train_total)
 
         if epoch % settings.validation_interval == 0 and epoch != 0:
-            val_loss = validate(head, yolo, val_loader, writer, criterion, settings)
+            val_loss = validate(model, val_loader, writer, criterion, settings)
             improvement = False
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 improvement = True
                 print("The model improved")
                 save_path = os.path.join(settings.weights_path, settings.work_model + ".pth")
-                torch.save(head, save_path)
+                torch.save(model, save_path)
             if early_stop(epoch, improvement):
                 break
                 
@@ -139,7 +134,7 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
 
 
 @torch.no_grad
-def validate(head: HEAD, yolo, val_loader: DataLoader, writer: SummaryWriter, criterion: nn.CrossEntropyLoss, settings: Settings) -> float:
+def validate(model: EfficientLRCN, val_loader: DataLoader, writer: SummaryWriter, criterion: nn.CrossEntropyLoss, settings: Settings) -> float:
     """
     Validation fn
 
@@ -148,19 +143,19 @@ def validate(head: HEAD, yolo, val_loader: DataLoader, writer: SummaryWriter, cr
     Returns:
 
     """
-    head.eval()
+    model.eval()
     validation_loss = 0.0
     val_total = 0.0
     val_correct = 0.0
 
-    for i, (videos, labels) in enumerate(val_loader):
-        labels = labels.to(settings.train_dev)
-        fms = fm_yolo(yolo, videos, settings)
-        # kps = kp_yolo(yolo, videos, settings)
+    for i, (vids, labels) in enumerate(val_loader):
+        vids, labels = vids.to(settings.train_dev, non_blocking=settings.async_transfers), labels.to(settings.train_dev, non_blocking=settings.async_transfers)
 
-        outputs = head(fms)
+        with autocast(device_type="cuda"):
+            outputs = model(vids)
+            loss = criterion(outputs, labels.view(-1))
+
         idxs = torch.argmax(outputs, dim=1)
-        loss = criterion(outputs, labels.view(-1))
         iter_loss = loss.item()
         assert not math.isnan(iter_loss), "validation is unstable, change settings"
         validation_loss += iter_loss
@@ -178,7 +173,7 @@ def validate(head: HEAD, yolo, val_loader: DataLoader, writer: SummaryWriter, cr
 
 
 @torch.no_grad
-def test() -> None:
+def test(test_loader: DataLoader, writer: SummaryWriter, settings: Settings) -> None:
     """
     Testing fn
 
@@ -187,7 +182,7 @@ def test() -> None:
     Returns:
 
     """
-    ...
+    return
 
 
 if __name__ == "__main__":

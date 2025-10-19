@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from src.train.train_loop import run_loop 
 from src.settings import Settings
 
@@ -13,7 +15,11 @@ def main() -> None:
         inference: 0 | 1
 
     """
+    print("The directory is", os.getcwd()) # TODO: the directories are different!
     settings = Settings()
+    project_dir = Path(settings.project_dir)
+    assert project_dir.exists, "Enter a valid project directory, no need for main.py"
+    os.chdir(project_dir)
 
     run_loop(settings=settings)
 

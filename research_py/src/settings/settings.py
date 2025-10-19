@@ -1,3 +1,4 @@
+from torch import nn
 from typing import List
 
 
@@ -6,44 +7,37 @@ class Settings:
     def __init__(self):
         
         """
-        1.706 val with ALL, 0.0 SMOOTH, 0.5 DROPOUT, 0.0005 DECAY, 64 HS, AUG
-
-        change of plans: instead of predictions based on keypoints
-            -> predictions based on the feature maps
-
-        CURRENT ASSUMPTIONS:
-            HIGHER BATCH_SIZE SHOULD STABILISE
-            PERHAPS SLIGHTLY HIHGER RES FOR MORE PRECISE PREDICTIONS
-            LOWER HIDDEN SIZE SEEMS TO PREVENT OVERFITTING (HIGHER DROPOUT TOO?)
         """
 
+        self._project_dir = "D:/self-studies/bachelors_final_project/research_py" # required to be hard coded since vs code changes the dir -> if i debug the dir is different from if i run from the terminal
+        self._dataset = "omnifall"
         self._train = True
         self._test = True
         self._inference = True
 
         self._split_format = "cs-staged"
-        self._dataset_path = "C:/Datasets/omnifall"
+        self._ucf101_path = "C:/Datasets"
+        self._omnifall_path = "C:/Datasets/omnifall"
         self._weights_path = "weights"
         self._dataset_labels = ["walk", "fall", "fallen", "sit_down", "sitting", "lie_down", "lying", "stand_up", "standing", "other"]
         # applied after the weighting based on sample sizes
         self._label_weights = [1.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
-        self._yolo_model = "yolo11n-cls.pt"
         self._work_model = "work"
         self._test_model = "test"
         self._inference_model = "inference"
 
-        self._train_batch_size = 12
-        self._val_batch_size = 12
-        self._test_batch_size = 12
+        self._train_batch_size = 10
+        self._val_batch_size = 10
+        self._test_batch_size = 10
 
-        self._image_size = 320
-        self._fps = 5 # fps for loading the videos, then later flatten according to video_length 
+        self._image_size = 224
         self._video_length = 12 # frames
 
         self._num_workers = 4
         
-        self._yolo_hooks = [9]
+        self._rnn_type = nn.LSTM # DO NOT INIT HERE
+        self._frozen_layers = 3
         self._lstm_input_size = 16
         self._lstm_hidden_size = 32
         self._lstm_num_layers = 1
@@ -52,9 +46,9 @@ class Settings:
         self._lstm_bidirectional = False
 
         self._min_epochs = 20
-        self._max_epochs = 500
-        self._early_stop_tries = 12
-        self._validation_interval = 6
+        self._max_epochs = 2
+        self._early_stop_tries = 8
+        self._validation_interval = 2
 
         self._learning_rate = 0.001
         self._weight_decay = 0.0005
@@ -62,8 +56,8 @@ class Settings:
         self._cls_weights_factor = 1
         self._cls_ignore_thresh = 10
 
-        self._amp = False # TODO: implement
-        self._async_transfers = False # TODO: implement
+        self._amp = False # TODO: currently hardcoded
+        self._async_transfers = True
 
         self._train_dev = "cuda:0"
         
@@ -73,33 +67,59 @@ class Settings:
         self._standard_deviation = (0.229, 0.224, 0.225)
 
     @property
+    def project_dir(self) -> str:
+        return self._project_dir
+
+    @property
     def train(self) -> bool:
         return self._train
+    
+    @train.setter
+    def train(self, train) -> None:
+        self._train = train
     
     @property
     def test(self) -> bool:
         return self._test
     
+    @test.setter
+    def test(self, test) -> None:
+        self._test = test
+    
     @property
     def inference(self) -> bool:
         return self._inference
+    
+    @inference.setter
+    def inference(self, inference) -> None:
+        self._inference = inference
     
     @property
     def split_format(self) -> str:
         return self._split_format
     
     @property
+    def dataset(self) -> str:
+        return self._dataset
+    
+    @dataset.setter
+    def dataset(self, dataset) -> None:
+        self._dataset = dataset
+
+    @property
     def dataset_path(self) -> str:
-        return self._dataset_path
+        match self.dataset:
+            case "omnifall":
+                return self._omnifall_path
+            case "ucf101":
+                return self._ucf101_path
+            case _:
+                raise RuntimeError("Provide a valid dataset")
     
     @property
     def weights_path(self) -> str:
         return self._weights_path
     
-    @property
-    def yolo_model(self) -> str:
-        return self._yolo_model
-
     @property
     def dataset_labels(self) -> List[str]:
         return self._dataset_labels
@@ -145,10 +165,6 @@ class Settings:
         return self._num_workers
     
     @property
-    def fps(self) -> float:
-        return self._fps
-    
-    @property
     def mean(self) -> List[float]:
         return self._mean
     
@@ -157,8 +173,12 @@ class Settings:
         return self._standard_deviation
 
     @property
-    def yolo_hooks(self) -> List[int]:
-        return self._yolo_hooks
+    def rnn_type(self) -> nn.Module:
+        return self._rnn_type
+    
+    @property
+    def frozen_layers(self) -> int:
+        return self._frozen_layers
 
     @property
     def lstm_input_size(self) -> int:

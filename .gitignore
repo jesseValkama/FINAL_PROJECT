@@ -34,6 +34,7 @@ __pycache__/
 
 # Weights and runtime
 /research_py/weights
+/research_py/train
 
 # OS junk
 .DS_Store

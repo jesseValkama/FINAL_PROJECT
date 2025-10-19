@@ -1,7 +1,6 @@
 from datasets import load_dataset
 import numpy as np
 import pandas as pd
-import random
 from src.settings import Settings
 from typing import Dict
 

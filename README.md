@@ -34,7 +34,8 @@ Jesse Vakama
 
 
 MODELS
-* [ULTRALYTICS YOLO11](https://github.com/ultralytics/ultralytics)
+* [EFFICIENTNET](https://arxiv.org/pdf/1905.11946)
+* [LSTM](https://www.bioinf.jku.at/publications/older/2604.pdf)
 
 DATASETS (omnifall annotations for le2i, more might be added at some point)
 * [OMNIFALL](https://arxiv.org/abs/2505.19889)
