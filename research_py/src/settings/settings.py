@@ -8,12 +8,11 @@ class Settings:
         
         """
         """
-
         self._project_dir = "D:/self-studies/bachelors_final_project/research_py" # required to be hard coded since vs code changes the dir -> if i debug the dir is different from if i run from the terminal
         self._dataset = "omnifall"
-        self._train = True
+        self._train = False
         self._test = True
-        self._inference = True
+        self._inference = False # TODO: implement?
 
         self._split_format = "cs-staged"
         self._ucf101_path = "C:/Datasets"
@@ -24,21 +23,18 @@ class Settings:
         self._label_weights = [1.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
         self._work_model = "work"
-        self._test_model = "test"
-        self._inference_model = "inference"
+        self._test_model = "experiment2"
+        self._inference_model = "best"
 
-        self._train_batch_size = 10
-        self._val_batch_size = 10
-        self._test_batch_size = 10
-
+        self._train_batch_size = 16
+        self._val_batch_size = 16
+        self._test_batch_size = 16
         self._image_size = 224
-        self._video_length = 12 # frames
-
-        self._num_workers = 4
+        self._video_length = 14 # frames, was 12
         
         self._rnn_type = nn.LSTM # DO NOT INIT HERE
         self._frozen_layers = 3
-        self._lstm_input_size = 16
+        self._lstm_input_size = 64
         self._lstm_hidden_size = 32
         self._lstm_num_layers = 1
         self._lstm_bias = True
@@ -46,19 +42,19 @@ class Settings:
         self._lstm_bidirectional = False
 
         self._min_epochs = 20
-        self._max_epochs = 2
+        self._max_epochs = 150
         self._early_stop_tries = 8
         self._validation_interval = 2
 
         self._learning_rate = 0.001
         self._weight_decay = 0.0005
         self._label_smoothing = 0.00
-        self._cls_weights_factor = 1
+        self._cls_weights_factor = 0.4
         self._cls_ignore_thresh = 10
 
+        self._num_workers = 4
         self._amp = False # TODO: currently hardcoded
         self._async_transfers = True
-
         self._train_dev = "cuda:0"
         
         # credit for imagenet mean and stdev:
@@ -229,7 +225,7 @@ class Settings:
         return self._label_smoothing
     
     @property
-    def cls_weight_factor(self) -> int:
+    def cls_weight_factor(self) -> float:
         return self._cls_weights_factor
     
     @property

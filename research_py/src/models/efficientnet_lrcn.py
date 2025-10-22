@@ -1,3 +1,4 @@
+from src.models.blocks.conv_block import ConvBlock
 from src.models.blocks.fully_connected import FullyConnected
 from src.settings.settings import Settings
 import torch
@@ -14,8 +15,8 @@ class EfficientLRCN(nn.Module):
         for p in self._backbone[:settings.frozen_layers].parameters():
             p.requires_grad = False
 
+        self._point_wise = ConvBlock(320, settings.lstm_input_size, (1, 1), 1, 0, activation_function=nn.SiLU(inplace=True))
         self._gap = nn.AdaptiveAvgPool2d(output_size=1)
-        self._map = nn.Linear(320, settings.lstm_input_size)
 
         self._rnn = settings.rnn_type(
             input_size = settings._lstm_input_size,
@@ -35,9 +36,13 @@ class EfficientLRCN(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         bs, seq = x.shape[0], x.shape[1]
         x = self._backbone(x.view(-1, x.shape[2], x.shape[3], x.shape[4]))
+        x = self._point_wise(x)
         x = self._gap(x)
-        x = self._map(x.view(x.shape[0], -1))
         x = x.view(bs, seq, -1)
         x, _ = self._rnn(x)
         x = self._classifier(x[:,-1,:])
         return x
+    
+
+if __name__ == "__main__":
+    raise NotImplementedError("Usage: python main.py args")

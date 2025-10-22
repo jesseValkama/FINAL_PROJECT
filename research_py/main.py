@@ -15,7 +15,7 @@ def main() -> None:
         inference: 0 | 1
 
     """
-    print("The directory is", os.getcwd()) # TODO: the directories are different!
+    print("The directory is", os.getcwd())
     settings = Settings()
     project_dir = Path(settings.project_dir)
     assert project_dir.exists, "Enter a valid project directory, no need for main.py"
