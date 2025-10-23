@@ -32,9 +32,9 @@ __pycache__/
 *.dll
 *.exe
 
-# Weights and runtime
+# Weights and tensorboard 
 /research_py/weights
-/research_py/train
+/research_py/runs
 
 # OS junk
 .DS_Store

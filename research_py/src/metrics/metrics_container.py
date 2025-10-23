@@ -73,12 +73,7 @@ class MetricsContainer:
     def show_conf_mat(self) -> None:
         """
         """
-        ...
-
-    def show_metrics(self) -> None:
-        """
-        """
-        ...
+        self._plot_container.push_conf_mat(self._conf_mat_table, self._dataset_labels)
 
     def print_conf_mat(self) -> None:
         """
@@ -86,9 +81,9 @@ class MetricsContainer:
         assert np.sum(self._conf_mat_table) != 0.0, "Construct the confusion matrix first with calc_iter method"
         assert np.sum(self._conf_mat_table) == np.sum(self._preds_total), \
         f"conf mat messed up: conf mat {np.sum(self._conf_mat_table)}, total {np.sum(self._preds_total)}"
-        print("---------------START OF THE CONFUSION MATRIX---------------\n\n")
+        print("---------------START OF THE CONFUSION MATRIX----------------\n\n")
         print(self._conf_mat_table)
-        print("\n\n----------------END OF THE CONFUSION MATRIX----------------")
+        print("\n\n----------------END OF THE CONFUSION MATRIX-----------------")
         print("\n\n")
 
     def print_metrics(self) -> None:
@@ -97,11 +92,35 @@ class MetricsContainer:
         assert self._10_class is not None, "Calculate the metrics before printing"
         n = len(self._dataset_labels)
         print("-------------------START OF THE METRICS-------------------\n\n")
+
+        print("---------------------------ALL----------------------------\n\n")
         for i in range(n):
             print(f"{self._dataset_labels[i]}:")
             print(f"Recall: {self._recall[i]:.2f}")
             print(f"Precision: {self._precision[i]:.2f}")
             print(f"F1: {self._f1[i]:.2f}\n")
+        
+        print("\n-------------------------OMNIFALL-------------------------\n\n")
+        print("10-class")
+        print(f"Balanced accuracy: {self._10_class["balanced_accuracy"]}")
+        print(f"Accuracy: {self._10_class["accuracy"]}")
+        print(f"F1: {self._10_class["f1"]}\n")
+
+        print("Fall")
+        print(f"Recall: {self._fall["recall"]}")
+        print(f"Precision: {self._fall["precision"]}")
+        print(f"F1: {self._fall["f1"]}\n")
+
+        print("Fallen")
+        print(f"Recall: {self._fallen["recall"]}")
+        print(f"Precision: {self._fallen["precision"]}")
+        print(f"F1: {self._fallen["f1"]}\n")
+
+        print("Fall U Fallen")
+        print(f"Recall: {self._fall_U_fallen["recall"]}")
+        print(f"Precision: {self._fall_U_fallen["precision"]}")
+        print(f"F1: {self._fall_U_fallen["f1"]}\n")
+
         print("\n--------------------END OF THE METRICS--------------------")
         print("\n\n")
 

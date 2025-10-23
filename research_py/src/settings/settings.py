@@ -7,12 +7,22 @@ class Settings:
     def __init__(self):
         
         """
+        TODO:
+        implement warmup
+        implement padding
+        implement sat
+        calculate FLOPs in test
+        implement tsne
+        implement inference with grad-cam
+
+        test different lstm sizes
+            best: 64 is && 32 hs
         """
         self._project_dir = "D:/self-studies/bachelors_final_project/research_py" # required to be hard coded since vs code changes the dir -> if i debug the dir is different from if i run from the terminal
         self._dataset = "omnifall"
-        self._train = False
+        self._train = True
         self._test = True
-        self._inference = False # TODO: implement?
+        self._inference = False
 
         self._split_format = "cs-staged"
         self._ucf101_path = "C:/Datasets"
@@ -23,15 +33,15 @@ class Settings:
         self._label_weights = [1.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
         self._work_model = "work"
-        self._test_model = "experiment2"
+        self._test_model = "experiment1"
         self._inference_model = "best"
 
         self._train_batch_size = 16
         self._val_batch_size = 16
         self._test_batch_size = 16
         self._image_size = 224
-        self._video_length = 14 # frames, was 12
-        
+        self._video_length = 12 # frames
+
         self._rnn_type = nn.LSTM # DO NOT INIT HERE
         self._frozen_layers = 3
         self._lstm_input_size = 64
@@ -42,7 +52,7 @@ class Settings:
         self._lstm_bidirectional = False
 
         self._min_epochs = 20
-        self._max_epochs = 150
+        self._max_epochs = 4
         self._early_stop_tries = 8
         self._validation_interval = 2
 

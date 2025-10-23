@@ -1,4 +1,3 @@
-from datetime import datetime
 import math
 import numpy as np
 import os
@@ -6,8 +5,8 @@ from src.datasets.get_data_loader import get_data_loader
 from src.datasets.load_omnifall import load_omnifall_info
 from src.datasets.load_ucf101_info import load_ucf101_info
 from src.datasets.omnifall import get_omnifall_datasets
-from src.models.efficientnet_lrcn import EfficientLRCN
 from src.metrics.metrics_container import MetricsContainer
+from src.models.efficientnet_lrcn import EfficientLRCN
 from src.settings.settings import Settings
 from src.utils.balance import get_cls_weights 
 from src.utils.early_stop import EarlyStop
@@ -29,8 +28,7 @@ def run_loop(settings: Settings) -> None:
     Returns:
 
     """
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    writer = SummaryWriter("train".format(timestamp))
+    writer = SummaryWriter()
     plot_container = PlotContainer(writer, settings)
     info_fn = load_omnifall_info if settings.dataset == "omnifall" else load_ucf101_info
     ds_info = info_fn(settings)
@@ -43,7 +41,7 @@ def run_loop(settings: Settings) -> None:
     if settings.test:
         test_loader = get_data_loader(test_set, settings.test_batch_size, True, settings.num_workers, settings.async_transfers)
         test(test_loader, plot_container, settings)
-
+       
 
 def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray, plot_container: PlotContainer, settings: Settings) -> None:
     """
@@ -54,9 +52,9 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
     Returns:
 
     """
-    cls_weights = get_cls_weights(samples, settings)
     model = EfficientLRCN(settings)
     model = model.to(settings.train_dev)
+    cls_weights = get_cls_weights(samples, settings)
     criterion = nn.CrossEntropyLoss(weight=cls_weights, label_smoothing=settings.label_smoothing)
     optimiser = torch.optim.AdamW(model.parameters(), lr=settings.learning_rate, weight_decay=settings.weight_decay)
     cosine_annealing = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, settings.max_epochs)
@@ -94,9 +92,10 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
                     train_correct += 1.0
 
         training_loss /= (i + 1)
+        training_accuracy = train_correct / train_total
         print("The training loss is: ", training_loss)
-        print("The training accuracy is: ", train_correct / train_total)
-        plot_container.update_plot(training_loss, "train", epoch)
+        print("The training accuracy is: ", training_accuracy)
+        plot_container.update_train_plots(training_loss, training_accuracy, "train")
         if epoch % settings.validation_interval == 0 and epoch != 0:
             val_loss = validate(model, val_loader, plot_container, criterion, settings)
             improvement = False
@@ -109,8 +108,8 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
             if early_stop(epoch, improvement):
                 break
         cosine_annealing.step()
-        #plot_container.push_plots()
 
+    plot_container.push_train_plots()
     end_time = time.time()
     training_time = end_time - start_time
     print("The training took: ", training_time)
@@ -146,9 +145,10 @@ def validate(model: EfficientLRCN, val_loader: DataLoader, plot_container: PlotC
                 val_correct += 1.0
 
     validation_loss /= (i + 1)
+    validation_accuracy = val_correct / val_total
     print("The validation loss is: ", validation_loss)
-    print("The validation accuracy is: ", val_correct / val_total)
-    plot_container.update_plot(validation_loss, "val")
+    print("The validation accuracy is: ", validation_accuracy)
+    plot_container.update_train_plots(validation_loss, validation_accuracy, "val")
     return validation_loss
 
 
@@ -173,14 +173,14 @@ def test(test_loader: DataLoader, plot_container: PlotContainer, settings: Setti
     for (vids, labels) in test_loader:
         vids, labels = vids.to(settings.train_dev, non_blocking=settings.async_transfers), labels.to(settings.train_dev, non_blocking=settings.async_transfers).view(-1)
         with torch.autocast(device_type="cuda"):
-            logits = model(vids)
-        metrics_container.calc_iter(logits, labels)
+            outputs = model(vids)
+        metrics_container.calc_iter(outputs, labels)
 
+    print("\n\n")
     metrics_container.show_conf_mat()
     metrics_container.print_conf_mat() 
     metrics_container.calc_metrics()
     metrics_container.print_metrics()
-    metrics_container.show_metrics()
 
 
 if __name__ == "__main__":

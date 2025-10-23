@@ -51,16 +51,10 @@ class Omnifall(torch.utils.data.Dataset):
         self._video_times = ds_info["times"] 
         self._video_labels = ds_info["labels"]
         self._settings = settings
-
         self._video_len = settings.video_length
-        
         self._pre_transforms = pre_transforms
         self._post_transforms = post_transforms
         self._aug_transforms = aug_transforms
-
-        if not aug_transforms:
-            print("Not using data augmentations")
-
         assert len(self._video_paths) == len(self._video_labels)
 
     def __len__(self) -> int:
