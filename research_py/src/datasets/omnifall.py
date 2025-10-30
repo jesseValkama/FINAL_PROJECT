@@ -1,5 +1,6 @@
 import albumentations as A
 import av
+import cv2 as cv
 import numpy as np
 import os
 from pathlib import Path
@@ -22,17 +23,14 @@ def get_omnifall_datasets(ds_info: Dict, settings: Settings) -> Tuple[torch.util
     pre_transforms = A.ReplayCompose([
         A.Resize(width=settings.image_size, height=settings.image_size)
     ])
-
     aug_transforms = A.ReplayCompose([
         A.HorizontalFlip(),
         A.ISONoise(p=0.3),
         A.RandomGamma(p=0.3)
     ])
-
     post_transforms = v2.Compose([
         v2.Normalize(mean=settings.mean, std=settings.standard_deviation, inplace=True)  
     ])
-
     train = Omnifall(ds_info["train"], settings, pre_transforms, post_transforms, aug_transforms=aug_transforms)
     val = Omnifall(ds_info["validation"], settings, pre_transforms, post_transforms)
     test = Omnifall(ds_info["test"], settings, pre_transforms, post_transforms)
@@ -45,6 +43,8 @@ class Omnifall(torch.utils.data.Dataset):
     """
     
     def __init__(self, ds_info: dict, settings: Settings, pre_transforms: A.ReplayCompose, post_transforms: v2.Compose, aug_transforms: A.ReplayCompose | None = None) -> None:
+        """
+        """
         assert isinstance(pre_transforms, A.ReplayCompose) and isinstance(aug_transforms, (A.ReplayCompose, type(None))) and isinstance(post_transforms, v2.Compose)
         self._video_paths = ds_info["paths"]
         self._video_datasets =  ds_info["datasets"]
@@ -58,16 +58,20 @@ class Omnifall(torch.utils.data.Dataset):
         assert len(self._video_paths) == len(self._video_labels)
 
     def __len__(self) -> int:
+        """
+        """
         return len(self._video_labels)
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        """
         ext = self._get_ext(idx)
         video_path_str = os.path.join(self._settings.dataset_path, self._video_datasets[idx], self._video_paths[idx] + ext)
         video_path = Path(video_path_str)
         assert video_path.is_file(), f"path to video is invalid {video_path_str}"
 
         clip = self._load_video(video_path, self._video_times[idx])
-        clip = self._apply_transforms(clip, self._pre_transforms)
+        #clip = self._apply_transforms(clip, self._pre_transforms)
         if self._aug_transforms:
             clip = self._apply_transforms(clip, self._aug_transforms)
 
@@ -75,7 +79,6 @@ class Omnifall(torch.utils.data.Dataset):
         clip = clip.permute([0, 3, 1, 2]).contiguous().to(torch.float)
         clip.div_(255.0)
         clip = self._post_transforms(clip)
-
         label = self._video_labels[idx]
         label = torch.Tensor([label]).to(torch.long)
         return clip, label
@@ -143,6 +146,11 @@ class Omnifall(torch.utils.data.Dataset):
             for i, frame in enumerate(container.decode(stream)):
                 if i % capture_interval == 0:
                     img = frame.to_ndarray(format="rgb24")
+                    h, w = img.shape[:-1]
+                    pad_y = max(0, (w - h) // 2)
+                    pad_x = max(0, (h - w) // 2)
+                    img = cv.copyMakeBorder(img, pad_y,  pad_y, pad_x, pad_x, cv.BORDER_CONSTANT)
+                    img = cv.resize(img, (self._settings.image_size, self._settings.image_size))
                     video.append(img) 
                 if frame.pts * stream.time_base > end_pts:
                     break

@@ -92,6 +92,13 @@ class PlotContainer:
         sns.heatmap(df_cm, annot=True)
         self._writer.add_figure("Confusion Matrix", fig)
     
+    def push_tsne(self, latent_repr: np.ndarray) -> None:
+        """
+        """
+        fig = plt.figure()
+        plt.scatter(latent_repr[:, 0], latent_repr[:, 1])
+        self._writer.add_figure("Embeddings in the latent space", fig)
+    
 
 if __name__ == "__main__":
     raise NotImplementedError("Usage: python main.py args")

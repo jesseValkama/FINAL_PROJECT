@@ -24,15 +24,15 @@ class ConvBlock(nn.Module):
             activation_function: None or pytorch activation function, default = None
         """
         super(ConvBlock, self).__init__()
-        self._conv = nn.Conv2d(channels_in, channels_out, kernel_size, stride, padding, bias=bias)
-        self._batch_norm = nn.BatchNorm2d(channels_out)
-        self._activation_function = activation_function
+        self.conv = nn.Conv2d(channels_in, channels_out, kernel_size, stride, padding, bias=bias)
+        self.batch_norm = nn.BatchNorm2d(channels_out)
+        self.activation_function = activation_function
 
     def forward(self, x) -> torch.Tensor:
-        x = self._conv(x)
-        x = self._batch_norm(x)
-        if self._activation_function:
-            x = self._activation_function(x)
+        x = self.conv(x)
+        x = self.batch_norm(x)
+        if self.activation_function:
+            x = self.activation_function(x)
         return x
 
 

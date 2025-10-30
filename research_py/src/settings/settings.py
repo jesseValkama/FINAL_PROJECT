@@ -8,12 +8,12 @@ class Settings:
         
         """
         TODO:
-        implement warmup
-        implement padding
         implement sat
         calculate FLOPs in test
-        implement tsne
         implement inference with grad-cam
+
+        test label smoothing:
+            best: 0.0
 
         test different lstm sizes
             best: 64 is && 32 hs
@@ -34,14 +34,19 @@ class Settings:
 
         self._work_model = "work"
         self._test_model = "experiment1"
-        self._inference_model = "best"
+        self._inference_model = "experiment1"
 
-        self._train_batch_size = 16
-        self._val_batch_size = 16
-        self._test_batch_size = 16
+        self._train_batch_size = 20
+        self._val_batch_size = 20
+        self._test_batch_size = 20
         self._image_size = 224
         self._video_length = 12 # frames
 
+        self._criterion = "sce"
+        self._self_adaptive_training = False
+        self._TRADES = False
+        self._sce_alpha = 1
+        self._sce_beta = 0.2
         self._rnn_type = nn.LSTM # DO NOT INIT HERE
         self._frozen_layers = 3
         self._lstm_input_size = 64
@@ -55,10 +60,11 @@ class Settings:
         self._max_epochs = 4
         self._early_stop_tries = 8
         self._validation_interval = 2
+        self._warmup_length = 4
 
         self._learning_rate = 0.001
         self._weight_decay = 0.0005
-        self._label_smoothing = 0.00
+        self._label_smoothing = 0.0
         self._cls_weights_factor = 0.4
         self._cls_ignore_thresh = 10
 
@@ -187,6 +193,18 @@ class Settings:
         return self._frozen_layers
 
     @property
+    def criterion(self) -> str:
+        return self._criterion
+    
+    @property
+    def sce_alpha(self) -> float:
+        return self._sce_alpha
+    
+    @property
+    def sce_beta(self) -> float:
+        return self._sce_beta
+
+    @property
     def lstm_input_size(self) -> int:
         return self._lstm_input_size
     
@@ -246,6 +264,10 @@ class Settings:
     def validation_interval(self) -> int:
         return self._validation_interval
     
+    @property
+    def warmup_length(self) -> int:
+        return self._warmup_length
+
     @property
     def amp(self) -> bool:
         return self._amp
