@@ -5,15 +5,10 @@ from typing import List
 class Settings:
 
     def __init__(self):
-        
         """
         TODO:
-        implement sat
-        calculate FLOPs in test
-        implement inference with grad-cam
-
-        test label smoothing:
-            best: 0.0
+            calculate FLOPs in test
+            implement inference with grad-cam
 
         test different lstm sizes
             best: 64 is && 32 hs
@@ -31,7 +26,6 @@ class Settings:
         self._dataset_labels = ["walk", "fall", "fallen", "sit_down", "sitting", "lie_down", "lying", "stand_up", "standing", "other"]
         # applied after the weighting based on sample sizes
         self._label_weights = [1.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-
         self._work_model = "work"
         self._test_model = "experiment1"
         self._inference_model = "experiment1"
@@ -44,13 +38,20 @@ class Settings:
 
         self._criterion = "sce"
         self._self_adaptive_training = False
-        self._TRADES = False
+        self._TRADES = False # THE CODE IS UNTESTED DUE TO CUDA OUT OF MEMORY (6-year-old gpu)
         self._sce_alpha = 1
         self._sce_beta = 0.2
+        self._trades_adversarial_factor = 0.001
+        self._trades_steps = 1
+        self._trades_step_size = 0.03
+        self._trades_beta = 1.0
+        self._trades_epsilon = 0.031
+        self._sat_momentum = 0.9
+        self._sat_start = 40
         self._rnn_type = nn.LSTM # DO NOT INIT HERE
         self._frozen_layers = 3
-        self._lstm_input_size = 64
-        self._lstm_hidden_size = 32
+        self._lstm_input_size = 160
+        self._lstm_hidden_size = 64
         self._lstm_num_layers = 1
         self._lstm_bias = True
         self._lstm_dropout_prob = 0.0
@@ -58,7 +59,7 @@ class Settings:
 
         self._min_epochs = 20
         self._max_epochs = 4
-        self._early_stop_tries = 8
+        self._early_stop_tries = 10
         self._validation_interval = 2
         self._warmup_length = 4
 
@@ -69,7 +70,7 @@ class Settings:
         self._cls_ignore_thresh = 10
 
         self._num_workers = 4
-        self._amp = False # TODO: currently hardcoded
+        self._amp = False # TODO: currently hardcoded to make training even possible
         self._async_transfers = True
         self._train_dev = "cuda:0"
         
@@ -197,12 +198,48 @@ class Settings:
         return self._criterion
     
     @property
+    def self_adaptive_training(self) -> bool:
+        return self._self_adaptive_training
+    
+    @property
+    def trades(self) -> bool:
+        return self._TRADES
+    
+    @property
     def sce_alpha(self) -> float:
         return self._sce_alpha
     
     @property
     def sce_beta(self) -> float:
         return self._sce_beta
+    
+    @property
+    def trades_adversarial_factor(self) -> float:
+        return self._trades_adversarial_factor
+    
+    @property
+    def trades_steps(self) -> int:
+        return self._trades_steps
+    
+    @property
+    def trades_step_size(self) -> float:
+        return self._trades_step_size
+    
+    @property
+    def trades_beta(self) -> float:
+        return self._trades_beta
+    
+    @property
+    def trades_epsilon(self) -> float:
+        return self._trades_epsilon
+    
+    @property
+    def sat_momentum(self) -> float:
+        return self._sat_momentum
+    
+    @property
+    def sat_start(self) -> int:
+        return self._sat_start
 
     @property
     def lstm_input_size(self) -> int:

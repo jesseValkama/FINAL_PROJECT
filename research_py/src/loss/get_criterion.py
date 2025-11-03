@@ -1,17 +1,24 @@
+import numpy as np
+from src.loss.cross_entropy_loss import CrossEntropyLoss
+from src.loss.self_adaptive_training import SelfAdaptiveTraining
 from src.loss.symmetric_cross_entropy_loss import SymmetricCrossEntropyLoss
 from src.settings.settings import Settings
 import torch
-from torch import nn
 
 
-def get_criterion(criterion: str, cls_weights: torch.Tensor, settings: Settings):
+def get_criterion(criterion: str, settings: Settings, labels: np.ndarray, cls_weights: torch.Tensor | None = None) -> CrossEntropyLoss | SymmetricCrossEntropyLoss | SelfAdaptiveTraining:
     """
     """
     match criterion:
         case "ce":
-            return nn.CrossEntropyLoss(weight=cls_weights, label_smoothing=settings.label_smoothing)
+            criterion = CrossEntropyLoss(len(settings.dataset_labels), cls_weights=cls_weights)
         case "sce":
-            return SymmetricCrossEntropyLoss(settings.sce_alpha, settings.sce_beta, num_classes=len(settings.dataset_labels), cls_weights=cls_weights)
+            criterion = SymmetricCrossEntropyLoss(settings.sce_alpha, settings.sce_beta, len(settings.dataset_labels), cls_weights=cls_weights)
+        case _:
+            raise RuntimeError(f"Criterion not implented: {criterion}")
+    if settings.self_adaptive_training:
+        criterion = SelfAdaptiveTraining(criterion, labels, settings.sat_momentum, settings.sat_start, len(settings.dataset_labels), cls_weights)
+    return criterion
 
 
 if __name__ == "__main__":

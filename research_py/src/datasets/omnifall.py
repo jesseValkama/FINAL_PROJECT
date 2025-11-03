@@ -81,7 +81,7 @@ class Omnifall(torch.utils.data.Dataset):
         clip = self._post_transforms(clip)
         label = self._video_labels[idx]
         label = torch.Tensor([label]).to(torch.long)
-        return clip, label
+        return clip, label, idx
     
     def _apply_transforms(self, clip: np.ndarray, transforms: A.Compose) -> torch.Tensor:
         """

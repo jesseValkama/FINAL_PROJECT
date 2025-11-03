@@ -6,6 +6,7 @@ from src.datasets.load_omnifall import load_omnifall_info
 from src.datasets.load_ucf101_info import load_ucf101_info
 from src.datasets.omnifall import get_omnifall_datasets
 from src.loss.get_criterion import get_criterion
+from src.loss.trades import TRADES
 from src.metrics.metrics_container import MetricsContainer
 from src.models.efficientnet_lrcn import EfficientLRCN
 from src.settings.settings import Settings
@@ -35,17 +36,18 @@ def run_loop(settings: Settings) -> None:
     info_fn = load_omnifall_info if settings.dataset == "omnifall" else load_ucf101_info
     ds_info = info_fn(settings)
     samples = ds_info["train"]["samples"]
+    labels = ds_info["train"]["labels"]
     train_set, val_set, test_set = get_omnifall_datasets(ds_info, settings)
     if settings.train:
         train_loader = get_data_loader(train_set, settings.train_batch_size, True, settings.num_workers, settings.async_transfers)
         val_loader = get_data_loader(val_set, settings.val_batch_size, False, settings.num_workers, settings.async_transfers)
-        train(train_loader, val_loader, samples, plot_container, settings)
+        train(train_loader, val_loader, samples, labels, plot_container, settings)
     if settings.test:
         test_loader = get_data_loader(test_set, settings.test_batch_size, False, settings.num_workers, settings.async_transfers)
         test(test_loader, plot_container, settings)
        
 
-def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray, plot_container: PlotContainer, settings: Settings) -> None:
+def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray, labels: np.ndarray, plot_container: PlotContainer, settings: Settings) -> None:
     """
     Training fn that calls validate
 
@@ -57,7 +59,8 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
     model = EfficientLRCN(settings)
     model = model.to(settings.train_dev)
     cls_weights = get_cls_weights(samples, settings)
-    criterion = get_criterion(settings.criterion, cls_weights, settings)
+    criterion = get_criterion(settings.criterion, settings, labels, cls_weights)
+    trades = TRADES(settings)
     optimiser = torch.optim.AdamW(model.parameters(), lr=settings.learning_rate, weight_decay=settings.weight_decay)
     cosine_annealing = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, settings.max_epochs)
     warmup = WarmupLR(optimiser, settings.warmup_length, settings.warmup_length * math.ceil(np.sum(samples) / settings.train_batch_size))
@@ -75,12 +78,17 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
         train_total = 0.0
         model.train()
 
-        for i, (vids, labels) in enumerate(train_loader):
+        for i, (vids, labels, label_idxs) in enumerate(train_loader):
             vids, labels = vids.to(settings.train_dev, non_blocking=settings.async_transfers), labels.to(settings.train_dev, non_blocking=settings.async_transfers).view(-1)
             optimiser.zero_grad()
             with autocast(device_type="cuda"):
+                if settings.trades:
+                    adversarial_examples = trades(model, vids)
+                    optimiser.zero_grad()
                 outputs = model(vids)
-                loss = criterion(outputs, labels)
+                loss = criterion(outputs, labels, reduction=True, apply_cls_weights=True, label_idxs=label_idxs, epoch=epoch)
+                if settings.trades:
+                    loss = trades.calc_loss(loss, adversarial_examples)
             iter_loss = loss.item()
             assert not math.isnan(iter_loss), "Training is unstable, change settings"
             training_loss += iter_loss
@@ -114,7 +122,11 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
     plot_container.push_train_plots()
     end_time = time.time()
     training_time = end_time - start_time
-    print("The training took: ", training_time)
+    # credit: https://www.geeksforgeeks.org/python/python-program-to-convert-seconds-into-hours-minutes-and-seconds/
+    print("\n\n----------------------The training times----------------------\n\n")
+    print("Total: ", time.strftime("%H:%M:%S", time.gmtime(training_time)))
+    print("Per epoch: ", time.strftime("%H:%M:%S", time.gmtime(training_time / epoch)))
+    print("\n\n---------------------End of training times---------------------\n\n")
 
 
 @torch.no_grad
@@ -132,11 +144,11 @@ def validate(model: EfficientLRCN, val_loader: DataLoader, plot_container: PlotC
     val_total = 0.0
     val_correct = 0.0
 
-    for i, (vids, labels) in enumerate(val_loader):
+    for i, (vids, labels, label_idxs) in enumerate(val_loader):
         vids, labels = vids.to(settings.train_dev, non_blocking=settings.async_transfers), labels.to(settings.train_dev, non_blocking=settings.async_transfers).view(-1)
         with autocast(device_type="cuda"):
             outputs = model(vids)
-            loss = criterion(outputs, labels)
+            loss = criterion(outputs, labels, reduction=True, apply_cls_weights=True, label_idxs=label_idxs, epoch=0) # epoch = 0 means that even if sat = True, it will use the actual criterion
         idxs = torch.argmax(outputs, dim=1)
         iter_loss = loss.item()
         assert not math.isnan(iter_loss), "validation is unstable, change settings"
@@ -171,10 +183,10 @@ def test(test_loader: DataLoader, plot_container: PlotContainer, settings: Setti
     model.eval()
     metrics_container = MetricsContainer(settings.dataset_labels, plot_container)
     hook_handle = model.rnn.register_forward_hook(
-        lambda module, input, output : metrics_container.add_embedding(output[0][:,-1,:].detach().cpu())
+        lambda module, input, output : metrics_container.add_embedding(output[0][:,-1,:].detach().cpu()) # TODO: get label and try *args
     ) 
 
-    for (vids, labels) in test_loader:
+    for (vids, labels, _) in test_loader:
         vids, labels = vids.to(settings.train_dev, non_blocking=settings.async_transfers), labels.to(settings.train_dev, non_blocking=settings.async_transfers).view(-1)
         with torch.autocast(device_type="cuda"):
             outputs = model(vids)

@@ -33,7 +33,6 @@ class PlotContainer:
                 "accuracy": list() 
             }
         }
-        self._tensorboard_process = None
 
     def update_train_plots(self, loss: float, accuracy: float, type: str) -> None:
         """

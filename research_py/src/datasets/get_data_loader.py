@@ -24,6 +24,7 @@ def get_data_loader(dataset, batch_size: int, shuffle: bool, num_workers: int,
         shuffle=shuffle,
         num_workers=num_workers,
         pin_memory=pin_memory,
+        drop_last=True,
         persistent_workers=persistent_workers
     )
 

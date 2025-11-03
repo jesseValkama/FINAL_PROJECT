@@ -13,7 +13,6 @@ def main() -> None:
         train: 0 | 1
         test: 0 | 1
         inference: 0 | 1
-
     """
     settings = Settings()
     project_dir = Path(settings.project_dir)
