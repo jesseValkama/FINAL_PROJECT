@@ -2,8 +2,8 @@ from torch.utils.data import DataLoader
 
 
 def get_data_loader(dataset, batch_size: int, shuffle: bool, num_workers: int, 
-                    pin_memory: bool=False, persistent_workers: bool=True, 
-                    multiprocessing_context: str="spawn") -> DataLoader:
+                    pin_memory: bool=False, drop_last: bool = False, persistent_workers: bool = True, 
+                    multiprocessing_context: str | None = None) -> DataLoader:
     """
     Function for creating a dataloader, pin_memory is false by default, since
     the images DO NOT need to be moved to vram due to pretraining
@@ -24,8 +24,9 @@ def get_data_loader(dataset, batch_size: int, shuffle: bool, num_workers: int,
         shuffle=shuffle,
         num_workers=num_workers,
         pin_memory=pin_memory,
-        drop_last=True,
-        persistent_workers=persistent_workers
+        drop_last=drop_last,
+        persistent_workers=persistent_workers,
+        multiprocessing_context=multiprocessing_context
     )
 
 

@@ -66,12 +66,9 @@ class Omnifall(torch.utils.data.Dataset):
         """
         """
         ext = self._get_ext(idx)
-        video_path_str = os.path.join(self._settings.dataset_path, self._video_datasets[idx], self._video_paths[idx] + ext)
-        video_path = Path(video_path_str)
-        assert video_path.is_file(), f"path to video is invalid {video_path_str}"
-
-        clip = self._load_video(video_path, self._video_times[idx])
-        #clip = self._apply_transforms(clip, self._pre_transforms)
+        video_path = Path(os.path.join(self._settings.disk(self._video_datasets[idx]), self._settings.dataset_path, self._video_datasets[idx], self._video_paths[idx] + ext))
+        assert video_path.is_file(), f"path to video is invalid {video_path}"
+        clip = self._load_video(video_path, self._video_times[idx], ext)
         if self._aug_transforms:
             clip = self._apply_transforms(clip, self._aug_transforms)
 
@@ -114,10 +111,14 @@ class Omnifall(torch.utils.data.Dataset):
         match dataset:
             case "le2i":
                 return ".avi"
+            case "GMDCSA24":
+                return ".mp4"
+            case "OOPS":
+                return ".mp4"
             case _:
                 raise RuntimeError(f"Dataset not implemented yet ({dataset})")
-            
-    def _load_video(self, video_path: Path, time_steps: np.ndarray) -> np.ndarray:
+
+    def _load_video(self, video_path: Path, time_steps: np.ndarray, ext: str, corruption_threshold: int = 6) -> np.ndarray:
         """
         Function for loading videos, since the default torch codec doesn't work
         due to le2i videos having different fps, sizes, and omnifall dataset
@@ -128,39 +129,38 @@ class Omnifall(torch.utils.data.Dataset):
         Returns:
 
         """
+        assert time_steps[1] > time_steps[0]
         with av.open(video_path) as container:
             stream = container.streams.video[0]
-            stream.codec_context.skip_frame = "NONKEY"
-
+            if ext == ".avi":
+                stream.codec_context.skip_frame = "NONKEY"
             pts = float(stream.time_base)
             start_pts = int(time_steps[0] / pts) # pyav crashes if using np int
             end_pts = int(time_steps[1] / pts)
             container.seek(start_pts, stream=stream)
-
-            assert time_steps[1] > time_steps[0]
-            clip_length = (time_steps[1] - time_steps[0]) * float(stream.average_rate)
-
-            # this ends up overshooting, but should be fine for now
-            capture_interval = round(clip_length / self._video_len)
-            video = list() 
-            for i, frame in enumerate(container.decode(stream)):
-                if i % capture_interval == 0:
-                    img = frame.to_ndarray(format="rgb24")
-                    h, w = img.shape[:-1]
-                    pad_y = max(0, (w - h) // 2)
-                    pad_x = max(0, (h - w) // 2)
-                    img = cv.copyMakeBorder(img, pad_y,  pad_y, pad_x, pad_x, cv.BORDER_CONSTANT)
-                    img = cv.resize(img, (self._settings.image_size, self._settings.image_size))
-                    video.append(img) 
-                if frame.pts * stream.time_base > end_pts:
+            capture_candidates = (np.linspace(time_steps[0], time_steps[1], self._video_len, endpoint=False) / pts).astype(np.int32)
+            video = list()
+            idx = 0
+            for frame in container.decode(stream):
+                frame_pts = frame.pts
+                if frame_pts is None or frame_pts < capture_candidates[idx]:
+                    continue
+                idx += 1
+                img = frame.to_ndarray(format="rgb24")
+                h, w = img.shape[:-1]
+                pad_y = max(0, (w - h) // 2)
+                pad_x = max(0, (h - w) // 2)
+                img = cv.copyMakeBorder(img, pad_y,  pad_y, pad_x, pad_x, cv.BORDER_CONSTANT)
+                img = cv.resize(img, (self._settings.image_size, self._settings.image_size))
+                video.append(img) 
+                if frame_pts > end_pts or idx >= self._video_len:
                     break
-
         video = np.array(video)
         n = len(video)
-        if n > self._video_len:
-            indices = np.linspace(0, len(video) - 1, self._video_len, dtype=int)
-            return video[indices]
-        elif n < self._video_len:
+        if n < corruption_threshold:
+            print(f"corrupt clip: {video_path}")
+        assert n >= 1, f"Corrupt clip: {video_path}, {capture_candidates}, {start_pts}, {end_pts}, {n}"
+        if n < self._video_len:
             pad = [video[-1]] * (self._video_len - len(video))
             return np.concatenate([video, pad], axis=0)
         return video

@@ -20,23 +20,30 @@ class Settings:
         self._inference = False
 
         self._split_format = "cs-staged"
-        self._ucf101_path = "C:/Datasets"
-        self._omnifall_path = "C:/Datasets/omnifall"
+        self._ucf101_path = "E:/Datasets"
+        self._disk_C = "C:/"
+        self._disk_E = "E:/"
+        self._omnifall_path = "Datasets/omnifall"
+        self._omnifall_subsets = ["le2i", "GMDCSA24", "OOPS"]
+        self._omnifall_corrupt_clips = ["Subject_1/Fall/14", "Subject_1/Fall/15",
+                                         "falls/DontBeSuchaBaby-KidFailsSeptember2018_FailArmy21", "falls/DontGetZapped-ThrowbackThursdayAugust201789",
+                                         "falls/DontRocktheBoat-ThrowbackFailsJuly201781", "falls/DoubleFailsNovember2017_FailArmy2",
+                                         "falls/AreYouSerious-ThrowbackThursdaySeptember2017_FailArmy10"]
         self._weights_path = "weights"
         self._dataset_labels = ["walk", "fall", "fallen", "sit_down", "sitting", "lie_down", "lying", "stand_up", "standing", "other"]
         # applied after the weighting based on sample sizes
         self._label_weights = [1.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
         self._work_model = "work"
-        self._test_model = "experiment1"
+        self._test_model = "experiment5"
         self._inference_model = "experiment1"
 
         self._train_batch_size = 20
         self._val_batch_size = 20
         self._test_batch_size = 20
         self._image_size = 224
-        self._video_length = 12 # frames
+        self._video_length = 10 # frames
 
-        self._criterion = "sce"
+        self._criterion = "ce"
         self._self_adaptive_training = False
         self._TRADES = False # THE CODE IS UNTESTED DUE TO CUDA OUT OF MEMORY (6-year-old gpu)
         self._sce_alpha = 1
@@ -47,18 +54,18 @@ class Settings:
         self._trades_beta = 1.0
         self._trades_epsilon = 0.031
         self._sat_momentum = 0.9
-        self._sat_start = 40
+        self._sat_start = 20
         self._rnn_type = nn.LSTM # DO NOT INIT HERE
         self._frozen_layers = 3
-        self._lstm_input_size = 160
-        self._lstm_hidden_size = 64
+        self._lstm_input_size = 64
+        self._lstm_hidden_size = 32
         self._lstm_num_layers = 1
         self._lstm_bias = True
         self._lstm_dropout_prob = 0.0
         self._lstm_bidirectional = False
 
         self._min_epochs = 20
-        self._max_epochs = 4
+        self._max_epochs = 100
         self._early_stop_tries = 10
         self._validation_interval = 2
         self._warmup_length = 4
@@ -69,8 +76,10 @@ class Settings:
         self._cls_weights_factor = 0.4
         self._cls_ignore_thresh = 10
 
-        self._num_workers = 4
-        self._amp = False # TODO: currently hardcoded to make training even possible
+        self._train_num_workers = 4
+        self._val_num_workers = 2
+        self._test_num_workers = 2
+        self._amp = True # TODO: currently hardcoded to make training even possible
         self._async_transfers = True
         self._train_dev = "cuda:0"
         
@@ -118,6 +127,17 @@ class Settings:
     @dataset.setter
     def dataset(self, dataset) -> None:
         self._dataset = dataset
+    
+    def disk(self, omnifall_subset) -> str:
+        match omnifall_subset:
+            case "GMDCSA24":
+                return self._disk_C
+            case "le2i":
+                return self._disk_C
+            case "OOPS":
+                return self._disk_E
+            case _:
+                raise RuntimeError("Provide a valid subset")
 
     @property
     def dataset_path(self) -> str:
@@ -128,7 +148,15 @@ class Settings:
                 return self._ucf101_path
             case _:
                 raise RuntimeError("Provide a valid dataset")
+
+    @property
+    def omnifall_subsets(self) -> List[str]:
+        return self._omnifall_subsets
     
+    @property
+    def omnifall_corrupt_clips(self) -> List[str]:
+        return self._omnifall_corrupt_clips
+
     @property
     def weights_path(self) -> str:
         return self._weights_path
@@ -174,9 +202,17 @@ class Settings:
         return self._video_length
 
     @property
-    def num_workers(self) -> int:
-        return self._num_workers
+    def train_num_workers(self) -> int:
+        return self._train_num_workers
     
+    @property
+    def val_num_workers(self) -> int:
+        return self._val_num_workers
+
+    @property
+    def test_num_workers(self) -> int:
+        return self._test_num_workers
+
     @property
     def mean(self) -> List[float]:
         return self._mean

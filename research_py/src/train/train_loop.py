@@ -39,11 +39,11 @@ def run_loop(settings: Settings) -> None:
     labels = ds_info["train"]["labels"]
     train_set, val_set, test_set = get_omnifall_datasets(ds_info, settings)
     if settings.train:
-        train_loader = get_data_loader(train_set, settings.train_batch_size, True, settings.num_workers, settings.async_transfers)
-        val_loader = get_data_loader(val_set, settings.val_batch_size, False, settings.num_workers, settings.async_transfers)
+        train_loader = get_data_loader(train_set, settings.train_batch_size, True, settings.train_num_workers, settings.async_transfers, drop_last=True)
+        val_loader = get_data_loader(val_set, settings.val_batch_size, False, settings.val_num_workers, settings.async_transfers)
         train(train_loader, val_loader, samples, labels, plot_container, settings)
     if settings.test:
-        test_loader = get_data_loader(test_set, settings.test_batch_size, False, settings.num_workers, settings.async_transfers)
+        test_loader = get_data_loader(test_set, settings.test_batch_size, False, settings.test_num_workers, settings.async_transfers)
         test(test_loader, plot_container, settings)
        
 
@@ -186,7 +186,10 @@ def test(test_loader: DataLoader, plot_container: PlotContainer, settings: Setti
         lambda module, input, output : metrics_container.add_embedding(output[0][:,-1,:].detach().cpu()) # TODO: get label and try *args
     ) 
 
+    stupid_idx = 1
     for (vids, labels, _) in test_loader:
+        # print(f"Success omg lol wtf {stupid_idx}")
+        stupid_idx += 1
         vids, labels = vids.to(settings.train_dev, non_blocking=settings.async_transfers), labels.to(settings.train_dev, non_blocking=settings.async_transfers).view(-1)
         with torch.autocast(device_type="cuda"):
             outputs = model(vids)

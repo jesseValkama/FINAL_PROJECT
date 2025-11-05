@@ -22,14 +22,11 @@ def load_omnifall_info(settings: Settings) -> Dict:
         https://huggingface.co/datasets/simplexsigil2/omnifall
 
     """
-
     valid = ["cs", "cv", "cs-staged", "cv-staged", "cs-staged-wild", "cv-staged-wild"]
     assert settings.split_format in valid, "Please enter a valid split format"
     labels = load_dataset("simplexsigil2/omnifall", "labels")["train"] # train contains all labels
     data = load_dataset("simplexsigil2/omnifall", settings.split_format)
-
     labels_df = pd.DataFrame(labels)
-
     ds_info = {
         "train": {
             "paths": None,
@@ -58,11 +55,12 @@ def load_omnifall_info(settings: Settings) -> Dict:
         for subset_name, subset in split_data.items():
             assert subset_name in ds_info, "incorrect keys"
             subset_df = pd.DataFrame(subset)
-
             merged_df = pd.merge(subset_df, labels_df, on="path", how="left")
-            merged_df = merged_df[merged_df["dataset"] == "le2i"]
-            #merged_df = merged_df[:2]
-
+            merged_df = merged_df[(merged_df["dataset"].isin(settings.omnifall_subsets))
+                                   & (merged_df["label"] < 10) # labels over 10 are only for oops -> staged-to-wild wouldnt work
+                                   & (~merged_df["path"].isin(settings.omnifall_corrupt_clips))]
+            if subset_name == "test":
+                merged_df = merged_df[:1460] 
             print(f"{subset_name} split: {len(merged_df)} clips with labels")
             set_samples = np.array([])
             for i in range(len(settings.dataset_labels)):
@@ -75,13 +73,11 @@ def load_omnifall_info(settings: Settings) -> Dict:
             set_times = merged_df[["start", "end"]].to_numpy()
             set_labels = merged_df["label"].to_numpy(dtype=np.uint8)
             assert len(set_paths) == len(set_labels), "the data is corrupt"
-
             ds_info[subset_name]["paths"] = set_paths
             ds_info[subset_name]["datasets"] = set_datasets
             ds_info[subset_name]["times"] = set_times
             ds_info[subset_name]["labels"] = set_labels
             ds_info[subset_name]["samples"] = set_samples
-
     return ds_info
 
 

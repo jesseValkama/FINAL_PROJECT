@@ -22,5 +22,23 @@ def main() -> None:
     run_loop(settings=settings)
 
 
+def change_file_names() -> None:
+    print("Started renaming")
+    path = Path("E:/Datasets/omnifall/OOPS/falls")
+    assert path.exists()
+    files = os.listdir(path)
+    os.chdir(path)
+    for file in files:
+        new_name = file.replace(" ", "")
+        new_name = new_name.replace("(", "")
+        new_name = new_name.replace(")", "")
+        new_name = new_name.replace("!", "")
+        new_name = new_name.replace("'", "")
+        new_name = new_name.replace(",", "")
+        if not new_name == file:
+            print(f"Renamed {file}")
+            os.rename(file, new_name)
+
+
 if __name__ == "__main__":
     main()

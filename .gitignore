@@ -35,6 +35,7 @@ __pycache__/
 # Weights and tensorboard 
 /research_py/weights
 /research_py/runs
+/research_py/experiments
 
 # OS junk
 .DS_Store

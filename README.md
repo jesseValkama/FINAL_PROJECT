@@ -29,8 +29,11 @@ Also all of the training settings should be defined there
 python main.py args
 ```
 args:
+
     train: 0 | 1
+
     test: 0 | 1
+
     inference: 0 | 1
 
 ## Help
