@@ -29,6 +29,7 @@ class MetricsContainer:
         self._precision = None
         self._f1 = None
         self._embeddings = torch.Tensor([])
+        self._labels = torch.Tensor([])
         
     def calc_iter(self, logits: torch.Tensor, labels: torch.Tensor) -> None:
         """
@@ -72,10 +73,11 @@ class MetricsContainer:
         self._fall_U_fallen = {"recall": np.mean(self._recall[1:3]), "precision": np.mean(self._precision[1:3]), "f1": np.mean(self._f1[1:3])}
         self._10_class = {"balanced_accuracy": (np.nanmean(self._precision) + np.nanmean(self._recall)) / 2, "accuracy": np.sum(self._preds_correct) / np.sum(self._preds_total), "f1": np.nanmean(self._f1)}
 
-    def add_embedding(self, embedding: torch.Tensor) -> None:
+    def add_embedding(self, embedding: torch.Tensor, labels: torch.Tensor) -> None:
         """
         """
         self._embeddings = torch.cat((self._embeddings, embedding), dim=0)
+        self._labels = torch.cat((self._labels, labels), dim=0)
 
     def tsne(self) -> None:
         """
@@ -83,7 +85,7 @@ class MetricsContainer:
         assert len(self._embeddings) != 0.0, "add embeddings with add_embedding method"
         tsne = TSNE()
         latent_repr = tsne.fit_transform(self._embeddings.numpy())
-        self._plot_container.push_tsne(latent_repr)
+        self._plot_container.push_tsne(latent_repr, self._labels.numpy(), self._dataset_labels)
         
     def show_conf_mat(self) -> None:
         """

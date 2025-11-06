@@ -183,13 +183,10 @@ def test(test_loader: DataLoader, plot_container: PlotContainer, settings: Setti
     model.eval()
     metrics_container = MetricsContainer(settings.dataset_labels, plot_container)
     hook_handle = model.rnn.register_forward_hook(
-        lambda module, input, output : metrics_container.add_embedding(output[0][:,-1,:].detach().cpu()) # TODO: get label and try *args
-    ) 
+        lambda module, input, output : metrics_container.add_embedding(output[0][:,-1,:].cpu(), labels.cpu())
+    )
 
-    stupid_idx = 1
     for (vids, labels, _) in test_loader:
-        # print(f"Success omg lol wtf {stupid_idx}")
-        stupid_idx += 1
         vids, labels = vids.to(settings.train_dev, non_blocking=settings.async_transfers), labels.to(settings.train_dev, non_blocking=settings.async_transfers).view(-1)
         with torch.autocast(device_type="cuda"):
             outputs = model(vids)

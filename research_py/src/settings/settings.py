@@ -15,7 +15,7 @@ class Settings:
         """
         self._project_dir = "D:/self-studies/bachelors_final_project/research_py" # required to be hard coded since vs code changes the dir -> if i debug the dir is different from if i run from the terminal
         self._dataset = "omnifall"
-        self._train = True
+        self._train = False
         self._test = True
         self._inference = False
 

@@ -85,17 +85,36 @@ class PlotContainer:
     
     def push_conf_mat(self, cm: np.ndarray, labels: List[str]) -> None:
         """
+        Acknowledgements:
+            https://stackoverflow.com/questions/35572000/how-can-i-plot-a-confusion-matrix
         """
-        df_cm = pd.DataFrame(cm, index=[l for l in labels], columns=[l for l in labels])
         fig = plt.figure()
+        df_cm = pd.DataFrame(cm, index=[l for l in labels], columns=[l for l in labels])
         sns.heatmap(df_cm, annot=True)
         self._writer.add_figure("Confusion Matrix", fig)
     
-    def push_tsne(self, latent_repr: np.ndarray) -> None:
+    def push_tsne(self, latent_repr: np.ndarray, labels: np.ndarray, dataset_labels: List[str]) -> None:
         """
+        Acknowledgements:
+            https://builtin.com/data-science/tsne-python
         """
         fig = plt.figure()
-        plt.scatter(latent_repr[:, 0], latent_repr[:, 1])
+        df = pd.DataFrame()
+        df["x"] = latent_repr[:, 0]
+        df["y"] = latent_repr[:, 1]
+        df["labels"] = labels
+        df["labels"] = df["labels"].map({float(i): label for i, label in enumerate(dataset_labels)})
+        ax = sns.scatterplot(
+            x = "x",
+            y = "y",
+            hue="labels",
+            palette=sns.color_palette("hls", len(dataset_labels)),
+            data=df,
+            legend="full",
+            alpha=0.6
+        )
+        ax.legend(loc="upper left", bbox_to_anchor=(-0.5, 0.8))
+        plt.tight_layout()
         self._writer.add_figure("Embeddings in the latent space", fig)
     
 
