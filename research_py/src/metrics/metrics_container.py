@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from sklearn.manifold import TSNE
 from src.visualise.plot_container import PlotContainer
 import torch
@@ -31,7 +32,7 @@ class MetricsContainer:
         self._embeddings = torch.Tensor([])
         self._labels = torch.Tensor([])
         
-    def calc_iter(self, logits: torch.Tensor, labels: torch.Tensor) -> None:
+    def calc_iter(self, logits: torch.Tensor, labels: torch.Tensor, cls_weights: np.ndarray[float] | None = None) -> None:
         """
         """
         candidates = self._activation_function(logits)
@@ -40,6 +41,9 @@ class MetricsContainer:
         
         n = len(preds)
         for i in range(n):
+            if cls_weights is not None and cls_weights[labels[i]] == 0.0:
+                print(f"skipped: {self._dataset_labels[labels[i]]}")
+                continue
             self._conf_mat_table[labels[i]][preds[i]] += 1
             self._preds_total[labels[i]] += 1
             if preds[i] == labels[i]:
@@ -49,29 +53,38 @@ class MetricsContainer:
             self._conf_mat_elements[self._dataset_labels[preds[i]]]["fp"] += 1
             self._conf_mat_elements[self._dataset_labels[labels[i]]]["fn"] += 1
 
-    def calc_metrics(self) -> None:
+    def calc_metrics(self, cls_weights: np.ndarray[float] | None) -> None:
         """
         """
+        if cls_weights is None:
+            cls_weights = np.ones(len(self._dataset_labels), dtype=np.float32)
         classes = self._conf_mat_elements.keys()
         self._recall = np.array([ 
             self._conf_mat_elements[cls]["tp"]/(self._conf_mat_elements[cls]["tp"] + self._conf_mat_elements[cls]["fn"])
-            if self._conf_mat_elements[cls]["tp"] + self._conf_mat_elements[cls]["fn"] > 0 else 0.0
-            for cls in classes 
+            if (self._conf_mat_elements[cls]["tp"] + self._conf_mat_elements[cls]["fn"] > 0) and (cls_weights[i] != 0.0) else self._metrics_helper(cls_weights, i)
+            for i, cls in enumerate(classes) 
         ])
         self._precision = np.array([
             self._conf_mat_elements[cls]["tp"]/(self._conf_mat_elements[cls]["tp"] + self._conf_mat_elements[cls]["fp"]) 
-            if self._conf_mat_elements[cls]["tp"] + self._conf_mat_elements[cls]["fp"] > 0 else 0.0
-            for cls in classes
+            if (self._conf_mat_elements[cls]["tp"] + self._conf_mat_elements[cls]["fp"] > 0) and (cls_weights[i] != 0.0) else self._metrics_helper(cls_weights, i)
+            for i, cls in enumerate(classes)
         ])
         self._f1 = np.array([
             2 * (self._precision[cls] * self._recall[cls]) / (self._precision[cls] + self._recall[cls])
-            if self._precision[cls] + self._recall[cls] > 0 else 0.0
+            if (self._precision[cls] + self._recall[cls] > 0) and (cls_weights[cls] != 0.0) else self._metrics_helper(cls_weights, cls)
             for cls in range(len(classes)) 
         ])
         self._fall = {"recall": self._recall[1], "precision": self._precision[1], "f1": self._f1[1]}
         self._fallen = {"recall": self._recall[2], "precision": self._precision[2], "f1": self._f1[2]}
         self._fall_U_fallen = {"recall": np.mean(self._recall[1:3]), "precision": np.mean(self._precision[1:3]), "f1": np.mean(self._f1[1:3])}
         self._10_class = {"balanced_accuracy": (np.nanmean(self._precision) + np.nanmean(self._recall)) / 2, "accuracy": np.sum(self._preds_correct) / np.sum(self._preds_total), "f1": np.nanmean(self._f1)}
+
+    def _metrics_helper(self, cls_weights: np.ndarray[float] | None, idx: int) -> float:
+        """
+        """
+        if cls_weights is None:
+            return 0.0
+        return np.nan if cls_weights[idx] == 0.0 else 0.0
 
     def add_embedding(self, embedding: torch.Tensor, labels: torch.Tensor) -> None:
         """
@@ -102,6 +115,16 @@ class MetricsContainer:
         print(self._conf_mat_table)
         print("\n\n----------------END OF THE CONFUSION MATRIX-----------------")
         print("\n\n")
+    
+    def show_metrics(self, dec: int = 2) -> None:
+        """
+        """
+        fall = pd.DataFrame(data={"sensitivity": [np.round(self._fall["recall"], dec), np.round(self._fallen["recall"], dec), np.round(self._fall_U_fallen["recall"], dec)], 
+                                       "specificity": [np.round(self._fallen["precision"], dec), np.round(self._fallen["precision"], dec), np.round(self._fall_U_fallen["precision"], dec)],
+                                       "f1": [np.round(self._fall["f1"], dec), np.round(self._fallen["f1"], dec), np.round(self._fall_U_fallen["f1"], dec)]}, index=["fall", "fallen", "fall U fallen"])
+        ten_class = pd.DataFrame(data={"balanced accuracy": [np.round(self._10_class["balanced_accuracy"], dec)], "accuracy": [np.round(self._10_class["accuracy"], dec)], "f1": [np.round(self._10_class["f1"], dec)]},
+                                 index=["10 class"])
+        self._plot_container.push_test_metrics(fall, ten_class)
 
     def print_metrics(self) -> None:
         """

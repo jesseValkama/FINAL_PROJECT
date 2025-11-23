@@ -53,7 +53,6 @@ class PlotContainer:
         fig, axs = plt.subplots(2, 1)
         fig.suptitle("Training metrics")
         plt.subplots_adjust(hspace=0.5)
-
         x = np.linspace(1, epoch, epoch)
         x_val = np.arange(self._settings.validation_interval, epoch + 1, self._settings.validation_interval)
         train_loss = np.array(self._train_data["train"]["loss"])
@@ -71,7 +70,6 @@ class PlotContainer:
         axs[0].set_xlabel("Epoch")
         axs[0].set_title("Loss curves")
         axs[0].legend()
-
         axs[1].plot(x, train_accuracy, c="g", label="Train accuracy")
         axs[1].plot(x, val_accuracy_interp, c="b", label="Validation accuracy")
         axs[1].scatter(x, train_accuracy, c="g")
@@ -80,7 +78,6 @@ class PlotContainer:
         axs[1].set_xlabel("Epoch")
         axs[1].set_title("Accuracy curves")
         axs[1].legend()
-
         self._writer.add_figure("Training metrics", fig)
     
     def push_conf_mat(self, cm: np.ndarray, labels: List[str]) -> None:
@@ -92,6 +89,17 @@ class PlotContainer:
         df_cm = pd.DataFrame(cm, index=[l for l in labels], columns=[l for l in labels])
         sns.heatmap(df_cm, annot=True)
         self._writer.add_figure("Confusion Matrix", fig)
+    
+    def push_test_metrics(self, ten_class: pd.DataFrame, fall: pd.DataFrame) -> None:
+        """
+        """
+        fig, axs = plt.subplots(2, 1)
+        axs[0].axis("off")
+        axs[0].table(cellText=ten_class, loc="center", cellLoc="center")
+        axs[1].axis("off")
+        axs[1].table(cellText=fall, loc="center", cellLoc="center")
+        plt.tight_layout()
+        self._writer.add_figure("Test metrics", fig)
     
     def push_tsne(self, latent_repr: np.ndarray, labels: np.ndarray, dataset_labels: List[str]) -> None:
         """

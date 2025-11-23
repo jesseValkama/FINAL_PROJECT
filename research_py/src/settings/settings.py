@@ -9,9 +9,6 @@ class Settings:
         TODO:
             calculate FLOPs in test
             implement inference with grad-cam
-
-        test different lstm sizes
-            best: 64 is && 32 hs
         """
         self._project_dir = "D:/self-studies/bachelors_final_project/research_py" # required to be hard coded since vs code changes the dir -> if i debug the dir is different from if i run from the terminal
         self._dataset = "omnifall"
@@ -19,22 +16,30 @@ class Settings:
         self._test = True
         self._inference = False
 
-        self._split_format = "cs-staged"
+        self._split_format = "cs-staged-wild"
         self._ucf101_path = "E:/Datasets"
         self._disk_C = "C:/"
         self._disk_E = "E:/"
         self._omnifall_path = "Datasets/omnifall"
         self._omnifall_subsets = ["le2i", "GMDCSA24", "OOPS"]
         self._omnifall_corrupt_clips = ["Subject_1/Fall/14", "Subject_1/Fall/15",
-                                         "falls/DontBeSuchaBaby-KidFailsSeptember2018_FailArmy21", "falls/DontGetZapped-ThrowbackThursdayAugust201789",
-                                         "falls/DontRocktheBoat-ThrowbackFailsJuly201781", "falls/DoubleFailsNovember2017_FailArmy2",
-                                         "falls/AreYouSerious-ThrowbackThursdaySeptember2017_FailArmy10"]
-        self._weights_path = "weights"
+                                        "falls/DontBeSuchaBaby-KidFailsSeptember2018_FailArmy21", "falls/DontGetZapped-ThrowbackThursdayAugust201789",
+                                        "falls/DontRocktheBoat-ThrowbackFailsJuly201781", "falls/DoubleFailsNovember2017_FailArmy2",
+                                        "falls/AreYouSerious-ThrowbackThursdaySeptember2017_FailArmy10", "falls/FailsoftheMonthFebruary2017_FailArmy37",
+                                        "falls/FailsoftheWeek-BigAir_BiggerFailsMarch2017_FailArmy33", "falls/FailsoftheWeek-BigAir_BiggerFailsMarch2017_FailArmy39", # these do not exist in my files (deleted?)
+                                        "falls/FailsoftheWeekMarch2017_FailArmy28", "falls/GuessitsTimetoLeave-ThrowbackThursdayOctober2017_FailArmy29",
+                                        "falls/HopelessRomantic-FailsoftheWeekOctober2018_FailArmy5", "falls/ItsAllDownHillFromHere-ThrowbackFailsAugust201717",
+                                        "falls/LetsGetIt-FailArmyAfterDarkep2170", "falls/LaughingCameraman-BestLaughsEverJanuary2017_FailArmy4",
+                                        "falls/PolePosition-FailsoftheWeekSeptember2018_FailArmy17", "falls/WakeboardWipeout-FailsoftheWeekApril2019_FailArmy7",
+                                        "falls/WheelieGoneWrong-FailsoftheWeekMay2018_FailArmy3", "falls/BeeKeeperBusiness-FailsoftheWeekNovember2018_FailArmy34"
+                                        ]
+        self._weights_path = "ablation_studies/GRU"
         self._dataset_labels = ["walk", "fall", "fallen", "sit_down", "sitting", "lie_down", "lying", "stand_up", "standing", "other"]
         # applied after the weighting based on sample sizes
         self._label_weights = [1.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+        self._apply_cls_weights = True
         self._work_model = "work"
-        self._test_model = "experiment5"
+        self._test_model = "gru3"
         self._inference_model = "experiment1"
 
         self._train_batch_size = 20
@@ -44,7 +49,7 @@ class Settings:
         self._video_length = 10 # frames
 
         self._criterion = "ce"
-        self._self_adaptive_training = False
+        self._self_adaptive_training = True
         self._TRADES = False # THE CODE IS UNTESTED DUE TO CUDA OUT OF MEMORY (6-year-old gpu)
         self._sce_alpha = 1
         self._sce_beta = 0.2
@@ -54,12 +59,14 @@ class Settings:
         self._trades_beta = 1.0
         self._trades_epsilon = 0.031
         self._sat_momentum = 0.9
-        self._sat_start = 20
-        self._rnn_type = nn.LSTM # DO NOT INIT HERE
+        self._sat_start = 11
+        self._sat_label_weights = True
+        self._rnn_type = nn.GRU # DO NOT INIT HERE
         self._frozen_layers = 3
-        self._lstm_input_size = 64
-        self._lstm_hidden_size = 32
+        self._lstm_input_size = 80 
+        self._lstm_hidden_size = 40
         self._lstm_num_layers = 1
+        self._rnn_point_wise = True
         self._lstm_bias = True
         self._lstm_dropout_prob = 0.0
         self._lstm_bidirectional = False
@@ -76,7 +83,7 @@ class Settings:
         self._cls_weights_factor = 0.4
         self._cls_ignore_thresh = 10
 
-        self._train_num_workers = 4
+        self._train_num_workers = 6
         self._val_num_workers = 2
         self._test_num_workers = 2
         self._amp = True # TODO: currently hardcoded to make training even possible
@@ -97,7 +104,7 @@ class Settings:
         return self._train
     
     @train.setter
-    def train(self, train) -> None:
+    def train(self, train: bool) -> None:
         self._train = train
     
     @property
@@ -105,7 +112,7 @@ class Settings:
         return self._test
     
     @test.setter
-    def test(self, test) -> None:
+    def test(self, test: bool) -> None:
         self._test = test
     
     @property
@@ -113,7 +120,7 @@ class Settings:
         return self._inference
     
     @inference.setter
-    def inference(self, inference) -> None:
+    def inference(self, inference: bool) -> None:
         self._inference = inference
     
     @property
@@ -125,14 +132,16 @@ class Settings:
         return self._dataset
     
     @dataset.setter
-    def dataset(self, dataset) -> None:
+    def dataset(self, dataset: str) -> None:
         self._dataset = dataset
     
-    def disk(self, omnifall_subset) -> str:
+    def disk(self, omnifall_subset: str) -> str:
         match omnifall_subset:
             case "GMDCSA24":
                 return self._disk_C
             case "le2i":
+                return self._disk_C
+            case "mcfd":
                 return self._disk_C
             case "OOPS":
                 return self._disk_E
@@ -168,6 +177,10 @@ class Settings:
     @property
     def label_weights(self) -> List[float]:
         return self._label_weights
+    
+    @property
+    def apply_cls_weights(self) -> bool:
+        return self._apply_cls_weights
     
     @property
     def work_model(self) -> str:
@@ -276,6 +289,10 @@ class Settings:
     @property
     def sat_start(self) -> int:
         return self._sat_start
+    
+    @property
+    def sat_label_weights(self) -> bool:
+        return self._sat_label_weights
 
     @property
     def lstm_input_size(self) -> int:
@@ -296,6 +313,10 @@ class Settings:
     @property
     def lstm_dropout_prob(self) -> float:
         return self._lstm_dropout_prob
+
+    @property
+    def rnn_point_wise(self) -> bool:
+        return self._rnn_point_wise
 
     @property
     def lstm_bidirectional(self) -> bool:

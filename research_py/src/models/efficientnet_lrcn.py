@@ -14,7 +14,7 @@ class EfficientLRCN(nn.Module):
         for p in self.backbone[:settings.frozen_layers].parameters():
             p.requires_grad = False
 
-        self.point_wise = ConvBlock(320, settings.lstm_input_size, (1, 1), 1, 0, activation_function=nn.SiLU(inplace=True))
+        self.point_wise = ConvBlock(320, settings.lstm_input_size, (1, 1), 1, 0, activation_function=nn.SiLU(inplace=True)) if settings.rnn_point_wise else None
         self.gap = nn.AdaptiveAvgPool2d(output_size=1)
 
         self.rnn = settings.rnn_type(
@@ -35,7 +35,8 @@ class EfficientLRCN(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         bs, seq = x.shape[0], x.shape[1]
         x = self.backbone(x.view(-1, x.shape[2], x.shape[3], x.shape[4]))
-        x = self.point_wise(x)
+        if self.point_wise:
+            x = self.point_wise(x)
         x = self.gap(x)
         x = x.view(bs, seq, -1)
         x, _ = self.rnn(x)

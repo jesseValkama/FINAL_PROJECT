@@ -18,7 +18,6 @@ def main() -> None:
     project_dir = Path(settings.project_dir)
     assert project_dir.exists, "Enter a valid project directory, no need for main.py"
     os.chdir(project_dir)
-
     run_loop(settings=settings)
 
 
@@ -35,8 +34,10 @@ def change_file_names() -> None:
         new_name = new_name.replace("!", "")
         new_name = new_name.replace("'", "")
         new_name = new_name.replace(",", "")
+        new_name = new_name.replace("&", "")
+        new_name = new_name.replace("WhipItWhipIt", "WhipIt_WhipIt")
         if not new_name == file:
-            print(f"Renamed {file}")
+            print(f"Renamed {file} to {new_name}")
             os.rename(file, new_name)
 
 

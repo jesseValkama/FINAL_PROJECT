@@ -17,7 +17,7 @@ def get_criterion(criterion: str, settings: Settings, labels: np.ndarray, cls_we
         case _:
             raise RuntimeError(f"Criterion not implented: {criterion}")
     if settings.self_adaptive_training:
-        criterion = SelfAdaptiveTraining(criterion, labels, settings.sat_momentum, settings.sat_start, len(settings.dataset_labels), cls_weights)
+        criterion = SelfAdaptiveTraining(criterion, labels, settings.sat_momentum, settings.sat_start, len(settings.dataset_labels), cls_weights, label_weights = settings.sat_label_weights)
     return criterion
 
 

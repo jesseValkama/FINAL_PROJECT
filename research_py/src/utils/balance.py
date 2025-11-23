@@ -3,7 +3,7 @@ from src.settings.settings import Settings
 import torch
 
 
-def get_cls_weights(samples: np.ndarray, settings: Settings) -> torch.Tensor:
+def get_cls_weights(samples: np.ndarray, settings: Settings, print_weights: bool = True) -> torch.Tensor:
     """
     Calcualates the ins and normalises the calculated classes to sum to the len of the weights
     Also applies the pre-determined weights from the settings
@@ -24,9 +24,10 @@ def get_cls_weights(samples: np.ndarray, settings: Settings) -> torch.Tensor:
     total = len([x for x in weights if x > 0.0])
     weights *= total / sum
 
-    print("The weights are:")
-    for i in range(len(settings.dataset_labels)):
-        print(f"  {settings.dataset_labels[i]}: {weights[i]}")
+    if print_weights:
+        print("The weights are:")
+        for i in range(len(settings.dataset_labels)):
+            print(f"  {settings.dataset_labels[i]}: {weights[i]}")
     return torch.Tensor(weights).to(settings.train_dev)
 
 

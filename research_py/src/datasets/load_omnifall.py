@@ -59,8 +59,6 @@ def load_omnifall_info(settings: Settings) -> Dict:
             merged_df = merged_df[(merged_df["dataset"].isin(settings.omnifall_subsets))
                                    & (merged_df["label"] < 10) # labels over 10 are only for oops -> staged-to-wild wouldnt work
                                    & (~merged_df["path"].isin(settings.omnifall_corrupt_clips))]
-            if subset_name == "test":
-                merged_df = merged_df[:1460] 
             print(f"{subset_name} split: {len(merged_df)} clips with labels")
             set_samples = np.array([])
             for i in range(len(settings.dataset_labels)):

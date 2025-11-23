@@ -44,7 +44,7 @@ def run_loop(settings: Settings) -> None:
         train(train_loader, val_loader, samples, labels, plot_container, settings)
     if settings.test:
         test_loader = get_data_loader(test_set, settings.test_batch_size, False, settings.test_num_workers, settings.async_transfers)
-        test(test_loader, plot_container, settings)
+        test(test_loader, samples, plot_container, settings)
        
 
 def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray, labels: np.ndarray, plot_container: PlotContainer, settings: Settings) -> None:
@@ -58,7 +58,7 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
     """
     model = EfficientLRCN(settings)
     model = model.to(settings.train_dev)
-    cls_weights = get_cls_weights(samples, settings)
+    cls_weights = get_cls_weights(samples, settings) if settings.apply_cls_weights else None 
     criterion = get_criterion(settings.criterion, settings, labels, cls_weights)
     trades = TRADES(settings)
     optimiser = torch.optim.AdamW(model.parameters(), lr=settings.learning_rate, weight_decay=settings.weight_decay)
@@ -86,7 +86,7 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
                     adversarial_examples = trades(model, vids)
                     optimiser.zero_grad()
                 outputs = model(vids)
-                loss = criterion(outputs, labels, reduction=True, apply_cls_weights=True, label_idxs=label_idxs, epoch=epoch)
+                loss = criterion(outputs, labels, reduction=True, apply_cls_weights=settings.apply_cls_weights, label_idxs=label_idxs, epoch=epoch)
                 if settings.trades:
                     loss = trades.calc_loss(loss, adversarial_examples)
             iter_loss = loss.item()
@@ -148,7 +148,7 @@ def validate(model: EfficientLRCN, val_loader: DataLoader, plot_container: PlotC
         vids, labels = vids.to(settings.train_dev, non_blocking=settings.async_transfers), labels.to(settings.train_dev, non_blocking=settings.async_transfers).view(-1)
         with autocast(device_type="cuda"):
             outputs = model(vids)
-            loss = criterion(outputs, labels, reduction=True, apply_cls_weights=True, label_idxs=label_idxs, epoch=0) # epoch = 0 means that even if sat = True, it will use the actual criterion
+            loss = criterion(outputs, labels, reduction=True, apply_cls_weights=settings.apply_cls_weights, label_idxs=label_idxs, epoch=0) # epoch = 0 means that even if sat = True, it will use the actual criterion
         idxs = torch.argmax(outputs, dim=1)
         iter_loss = loss.item()
         assert not math.isnan(iter_loss), "validation is unstable, change settings"
@@ -165,7 +165,7 @@ def validate(model: EfficientLRCN, val_loader: DataLoader, plot_container: PlotC
 
 
 @torch.no_grad
-def test(test_loader: DataLoader, plot_container: PlotContainer, settings: Settings) -> None:
+def test(test_loader: DataLoader, samples: np.ndarray, plot_container: PlotContainer, settings: Settings) -> None:
     """
     Testing fn
 
@@ -185,19 +185,21 @@ def test(test_loader: DataLoader, plot_container: PlotContainer, settings: Setti
     hook_handle = model.rnn.register_forward_hook(
         lambda module, input, output : metrics_container.add_embedding(output[0][:,-1,:].cpu(), labels.cpu())
     )
+    cls_weights = get_cls_weights(samples, settings, print_weights=False) if settings.apply_cls_weights else None
 
     for (vids, labels, _) in test_loader:
         vids, labels = vids.to(settings.train_dev, non_blocking=settings.async_transfers), labels.to(settings.train_dev, non_blocking=settings.async_transfers).view(-1)
         with torch.autocast(device_type="cuda"):
             outputs = model(vids)
-        metrics_container.calc_iter(outputs, labels)
+        metrics_container.calc_iter(outputs, labels, cls_weights=cls_weights)
     hook_handle.remove()
 
     print("\n\n")
     metrics_container.tsne()
     metrics_container.show_conf_mat()
     metrics_container.print_conf_mat() 
-    metrics_container.calc_metrics()
+    metrics_container.calc_metrics(cls_weights)
+    metrics_container.show_metrics()
     metrics_container.print_metrics()
 
 
