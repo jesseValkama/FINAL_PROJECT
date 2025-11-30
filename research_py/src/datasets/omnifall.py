@@ -48,7 +48,7 @@ def get_omnifall_datasets(ds_info: Dict, settings: Settings) -> Tuple[torch.util
 
 class Omnifall(torch.utils.data.Dataset):
     """
-    Class for handling Omnifall, used by a torch Dataloader
+    Class for handling Omnifall
     """
     
     def __init__(self, ds_info: dict, settings: Settings, pre_transforms: A.ReplayCompose, post_transforms: v2.Compose, aug_transforms: A.ReplayCompose | None = None) -> None:

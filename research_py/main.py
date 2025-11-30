@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from src.inference.inference import run_inference
 from src.train.train_loop import run_loop 
 from src.settings import Settings
 
@@ -18,27 +19,31 @@ def main() -> None:
     project_dir = Path(settings.project_dir)
     assert project_dir.exists, "Enter a valid project directory, no need for main.py"
     os.chdir(project_dir)
-    run_loop(settings=settings)
+    # scorecam_test()
+    if settings.train or settings.test:
+        run_loop(settings=settings)
+    if settings.inference:
+        run_inference(settings, "ScoreCAM")
 
 
-def change_file_names() -> None:
-    print("Started renaming")
-    path = Path("E:/Datasets/omnifall/OOPS/falls")
-    assert path.exists()
-    files = os.listdir(path)
-    os.chdir(path)
-    for file in files:
-        new_name = file.replace(" ", "")
-        new_name = new_name.replace("(", "")
-        new_name = new_name.replace(")", "")
-        new_name = new_name.replace("!", "")
-        new_name = new_name.replace("'", "")
-        new_name = new_name.replace(",", "")
-        new_name = new_name.replace("&", "")
-        new_name = new_name.replace("WhipItWhipIt", "WhipIt_WhipIt")
-        if not new_name == file:
-            print(f"Renamed {file} to {new_name}")
-            os.rename(file, new_name)
+def scorecam_test():
+    from pytorch_grad_cam import GradCAM, HiResCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM, FullGrad
+    from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
+    from pytorch_grad_cam.utils.image import show_cam_on_image
+    from torchvision.models import resnet50, ResNet50_Weights
+    import cv2 as cv
+    import torch
+
+    model = resnet50(weights=ResNet50_Weights.DEFAULT)
+    target_layers = [model.layer4[-1]]
+    rgb_img = cv.imread("C:/Datasets/dog_cat.jfif") / 255
+    input_tensor = torch.Tensor(rgb_img).permute([2, 0, 1]).contiguous().unsqueeze_(0)
+    targets = [ClassifierOutputTarget(281)]
+    with ScoreCAM(model=model, target_layers=target_layers) as cam:
+        grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
+        grayscale_cam = grayscale_cam[0, :]
+        visualization = show_cam_on_image(rgb_img, grayscale_cam, use_rgb=True)
+        model_outputs = cam.outputs
 
 
 if __name__ == "__main__":

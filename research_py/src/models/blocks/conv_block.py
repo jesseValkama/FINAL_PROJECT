@@ -25,7 +25,7 @@ class ConvBlock(nn.Module):
         """
         super(ConvBlock, self).__init__()
         self.conv = nn.Conv2d(channels_in, channels_out, kernel_size, stride, padding, bias=bias)
-        self.batch_norm = nn.BatchNorm2d(channels_out)
+        self.batch_norm = nn.BatchNorm2d(channels_out, epsilon)
         self.activation_function = activation_function
 
     def forward(self, x) -> torch.Tensor:

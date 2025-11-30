@@ -13,11 +13,15 @@ class Settings:
         self._project_dir = "D:/self-studies/bachelors_final_project/research_py" # required to be hard coded since vs code changes the dir -> if i debug the dir is different from if i run from the terminal
         self._dataset = "omnifall"
         self._train = False
-        self._test = True
-        self._inference = False
+        self._test = False
+        self._inference = True
 
         self._split_format = "cs-staged-wild"
         self._ucf101_path = "E:/Datasets"
+        self._inference_path = "E:/Datasets/fall_detection_inference"
+        self._inference_save_dir = "D:/Datasets/fall_detection_inference_saves"
+        self._inference_save_res = 500
+        self._inference_target = 1
         self._disk_C = "C:/"
         self._disk_E = "E:/"
         self._omnifall_path = "Datasets/omnifall"
@@ -33,14 +37,14 @@ class Settings:
                                         "falls/PolePosition-FailsoftheWeekSeptember2018_FailArmy17", "falls/WakeboardWipeout-FailsoftheWeekApril2019_FailArmy7",
                                         "falls/WheelieGoneWrong-FailsoftheWeekMay2018_FailArmy3", "falls/BeeKeeperBusiness-FailsoftheWeekNovember2018_FailArmy34"
                                         ]
-        self._weights_path = "ablation_studies/GRU"
+        self._weights_path = "ablation_studies/baseline"
         self._dataset_labels = ["walk", "fall", "fallen", "sit_down", "sitting", "lie_down", "lying", "stand_up", "standing", "other"]
         # applied after the weighting based on sample sizes
         self._label_weights = [1.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
         self._apply_cls_weights = True
         self._work_model = "work"
-        self._test_model = "gru3"
-        self._inference_model = "experiment1"
+        self._test_model = "baseline2"
+        self._inference_model = "baseline2"
 
         self._train_batch_size = 20
         self._val_batch_size = 20
@@ -61,7 +65,7 @@ class Settings:
         self._sat_momentum = 0.9
         self._sat_start = 11
         self._sat_label_weights = True
-        self._rnn_type = nn.GRU # DO NOT INIT HERE
+        self._rnn_type = nn.LSTM # DO NOT INIT HERE
         self._frozen_layers = 3
         self._lstm_input_size = 80 
         self._lstm_hidden_size = 40
@@ -122,6 +126,22 @@ class Settings:
     @inference.setter
     def inference(self, inference: bool) -> None:
         self._inference = inference
+    
+    @property
+    def inference_path(self) -> str:
+        return self._inference_path
+
+    @property
+    def inference_target(self) -> int:
+        return self._inference_target
+    
+    @property
+    def inference_save_dir(self) -> str:
+        return self._inference_save_dir
+    
+    @property
+    def inference_save_res(self) -> int:
+        return self._inference_save_res
     
     @property
     def split_format(self) -> str:
