@@ -23,7 +23,7 @@ def main() -> None:
     if settings.train or settings.test:
         run_loop(settings=settings)
     if settings.inference:
-        run_inference(settings, "ScoreCAM")
+        run_inference(settings, "GradCAM")
 
 
 def scorecam_test():

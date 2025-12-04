@@ -31,12 +31,12 @@ def run_inference(settings: Settings, cam_name: str = "ScoreCAM", capture_interv
     model.to(settings.train_dev)
     model.eval()
     acts = list()
-    grads = list()
-    forward_hook = model.point_wise.register_forward_hook(
+    grads = list() # backbone[7][0].block[2]
+    forward_hook = model.backbone[7][0].block[2].register_forward_hook( # .point_wise
         lambda module, input, output : acts.append(output))
     if cam_name == "GradCAM":
         model.rnn.train() # pytorch crashes otherwise
-        backward_hook = model.point_wise.register_full_backward_hook(
+        backward_hook = model.backbone[7][0].block[2].register_full_backward_hook(
             lambda module, input, output : grads.append(output[0]))
     assert Path(settings.inference_path).is_dir(), "Enter a proper inference dir (connect the external ssd)"
     video_paths = os.listdir(Path(settings.inference_path))

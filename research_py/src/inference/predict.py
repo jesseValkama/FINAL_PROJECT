@@ -38,8 +38,8 @@ def predict_GradCAM(model: EfficientLRCN, clip: torch.Tensor, rgb_clip: np.ndarr
     
 
 @torch.no_grad
-def predict_ScoreCAM(model: EfficientLRCN, clip: torch.Tensor, rgb_clip: np.ndarray, A_k: List, out: cv.VideoWriter, 
-            dataset_labels: List[str], inference_resize: int, BATCH_SIZE: int = 20, dev: str = "cuda:0") -> None:
+def predict_ScoreCAM(model: EfficientLRCN, clip: torch.Tensor, rgb_clip: np.ndarray, acts: List, out: cv.VideoWriter, 
+            dataset_labels: List[str], inference_resize: int, BATCH_SIZE: int = 30, dev: str = "cuda:0") -> None:
     """
     ScoreCAM modified to work with video data (could be bugged as the activations are spiral shaped)
     Acknowledgements
@@ -50,7 +50,7 @@ def predict_ScoreCAM(model: EfficientLRCN, clip: torch.Tensor, rgb_clip: np.ndar
         model: the model
         clip: the clip as tensor in LCHW
         rgb_clip: the clip as np.ndarray in LHWC
-        A_k: list to store activations
+        acts: list to store activations
         out: the video writer
         dataset_labels: list of labels as str
         inference_resize: the output size for the written vid
@@ -59,22 +59,26 @@ def predict_ScoreCAM(model: EfficientLRCN, clip: torch.Tensor, rgb_clip: np.ndar
     """
     with autocast(device_type="cuda"):
         logits = model(clip)
+    A_k = acts[0]
+    acts.clear()
     _, idx = torch.max(logits, dim=1)
-    up = F.interpolate(A_k[0], size=rgb_clip.shape[-3:-1], mode="bilinear")
-    M = s(up, dims=(2,3)) # NCHW
-    M = M[:, :, None, :, :] * clip.squeeze(0)[:, None, :, :, :] # (LCHW -> LC1HW) * (L3HW -> L13HW) -> LC3HW
-    M = M.transpose(0, 1).contiguous() # LC3HW -> CL3HW : C works as the batch size
+
+    M = F.interpolate(A_k, size=rgb_clip.shape[-3:-1], mode="bilinear")
+    M = s(M, dims=(2,3)) # NCHW
+    clip = clip.to(torch.float16).squeeze_(0)[:, None, :, :, :]
     S_k = torch.Tensor([]).to(dev)
-    for i in range(0, M.size(0), BATCH_SIZE):
-        batchified = M[i:i+BATCH_SIZE, :, :, :, :] # am i reading harry potter or a research paper
-        outputs = model(batchified)[:, idx]
+    for i in range(0, A_k.size(1), BATCH_SIZE):
+        M_k = M[:, i:i+BATCH_SIZE, None, :, :] * clip # (LCHW -> LC1HW) * (L3HW -> L13HW) -> LC3HW
+        M_k = M_k.transpose(0, 1).contiguous() # LC3HW -> CL3HW : C works as the batch size
+        with autocast(device_type="cuda"):
+            outputs = model(M_k)[:, idx]
         S_k = torch.cat((S_k, outputs.view(-1)), dim=0)
+        acts.clear()
     alpha_k = F.softmax(S_k.unsqueeze_(0), dim=1) # C -> 1C, no need for normalisation as the official impl doesn't use it
     alpha_k = alpha_k[:, :, None, None] # 1C11
-    score_cam = F.relu(torch.sum(alpha_k.cpu() * up.cpu(), dim=1)) # official impl uses upscaled instead of A_k
-    A_k.clear()
-    write_video(rgb_clip, score_cam, out, logits, idx, inference_resize, dataset_labels)
-    
+    score_cam = F.relu(torch.sum(alpha_k.cpu() * A_k.cpu(), dim=1))
+    write_video(rgb_clip, score_cam, out, logits, idx, inference_resize, dataset_labels)   
+
 
 def s(M: torch.Tensor, dims: Tuple[int, int]) -> torch.Tensor:
     """
