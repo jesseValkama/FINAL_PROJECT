@@ -6,7 +6,7 @@ from pathlib import Path
 from src.inference.predict import predict_GradCAM, predict_ScoreCAM
 from src.models.efficientnet_lrcn import EfficientLRCN
 from src.settings.settings import Settings
-from src.utils.preprocess import pad2square, remove_black_borders
+from src.utils.preprocess import pad2square, remove_black_borders, lhwc2Tensor
 import torch
 from torchvision.transforms import v2
 
@@ -30,12 +30,12 @@ def run_inference(settings: Settings, cam_name: str = "ScoreCAM", capture_interv
     model.load_state_dict(torch.load(save_path))
     model.to(settings.train_dev)
     model.eval()
-    model.rnn.train() # pytorch crashes otherwise
     acts = list()
     grads = list()
     forward_hook = model.point_wise.register_forward_hook(
         lambda module, input, output : acts.append(output))
     if cam_name == "GradCAM":
+        model.rnn.train() # pytorch crashes otherwise
         backward_hook = model.point_wise.register_full_backward_hook(
             lambda module, input, output : grads.append(output[0]))
     assert Path(settings.inference_path).is_dir(), "Enter a proper inference dir (connect the external ssd)"
@@ -54,29 +54,34 @@ def run_inference(settings: Settings, cam_name: str = "ScoreCAM", capture_interv
             exit()
         clip = list()
         frame_idx = 0
-        vid_idx = 0
         while True:
             ret, img = cap.read()
             if not ret:
                 print("Can't receive frame (stream end?). Exiting ...")
+                # skips the last frames of the video, which should be fine
                 break
             frame_idx += 1
-            if frame_idx % capture_interval == 0:
-                img = remove_black_borders(img)
-                img = pad2square(img, settings.image_size)
-                img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-                clip.append(img)
-                if len(clip) >= settings.video_length:
-                    vid_idx += 1
-                    match cam_name:
-                        case "GradCAM":
-                            predict_GradCAM(model, np.array(clip), post_transforms, acts, grads, 
-                                            out, settings.dataset_labels, settings.inference_save_res, dev=settings.train_dev)
-                        case "ScoreCAM":
-                            predict_ScoreCAM(model, np.array(clip), post_transforms, acts, 
-                                             out, settings.dataset_labels, settings.inference_save_res, dev=settings.train_dev)
-                    clip.clear()
+            if frame_idx % capture_interval != 0:
+                continue
+            img = remove_black_borders(img)
+            img = pad2square(img, settings.image_size)
+            img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+            clip.append(img)
+            if len(clip) < settings.video_length:
+                continue
+            numpy_clip = np.array(clip)
+            tensor_clip = lhwc2Tensor(numpy_clip, post_transforms, settings.train_dev).unsqueeze_(0) # LCHW -> NLCHW
+            match cam_name:
+                case "GradCAM":
+                    predict_GradCAM(model, tensor_clip, numpy_clip, acts, grads, 
+                                    out, settings.dataset_labels, settings.inference_save_res)
+                case "ScoreCAM":
+                    predict_ScoreCAM(model, tensor_clip, numpy_clip, acts, 
+                                        out, settings.dataset_labels, settings.inference_save_res, 
+                                        dev=settings.train_dev)
+            clip.clear()
         cap.release()
+        out.release()
     forward_hook.remove()
     if cam_name == "GradCAM":
         backward_hook.remove()

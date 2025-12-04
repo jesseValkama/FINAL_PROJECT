@@ -2,7 +2,6 @@ import cv2 as cv
 import numpy as np
 from src.inference.write import write_video
 from src.models.efficientnet_lrcn import EfficientLRCN
-from src.utils.preprocess import lhwc2Tensor
 import torch
 from torch.amp import autocast
 import torch.nn.functional as F
@@ -10,24 +9,22 @@ from torchvision.transforms import v2
 from typing import List, Tuple
 
 
-def predict_GradCAM(model: EfficientLRCN, rgb_clip: np.ndarray, post_transforms: v2.Compose, acts: List, grads: List, out: cv.VideoWriter, 
-            dataset_labels: List[str], inference_resize: int, dev: str = "cuda:0") -> None:
+def predict_GradCAM(model: EfficientLRCN, clip: torch.Tensor, rgb_clip: np.ndarray, acts: List, grads: List, out: cv.VideoWriter, 
+            dataset_labels: List[str], inference_resize: int) -> None:
     """
     GradCAM modified to work with vidoe data
     Acknowledgements:
         https://arxiv.org/pdf/1610.02391
     Args:
         model: the model
-        rgb_clip: the rgb clip in LHWC
-        post_transforms: normalise the clip with z-scaling
+        clip: the clip as tensor in LCHW
+        rgb_clip: the clip as np.ndarray in LHWC
         acts: list to store activations
         grads: list to store gradients
         out: the video writer
         dataset_labels: list of labels as str
         inference_resize: the output size for the written vid
-        dev: inference device
     """
-    clip = lhwc2Tensor(rgb_clip, post_transforms).unsqueeze_(0).to(dev) # LCHW -> NLCHW
     with autocast(device_type="cuda"):
         logits = model(clip)
     logit, idx = torch.max(logits, dim=1)
@@ -41,7 +38,7 @@ def predict_GradCAM(model: EfficientLRCN, rgb_clip: np.ndarray, post_transforms:
     
 
 @torch.no_grad
-def predict_ScoreCAM(model: EfficientLRCN, rgb_clip: np.ndarray, post_transforms: v2.Compose, A_k: List, out: cv.VideoWriter, 
+def predict_ScoreCAM(model: EfficientLRCN, clip: torch.Tensor, rgb_clip: np.ndarray, A_k: List, out: cv.VideoWriter, 
             dataset_labels: List[str], inference_resize: int, BATCH_SIZE: int = 20, dev: str = "cuda:0") -> None:
     """
     ScoreCAM modified to work with video data (could be bugged as the activations are spiral shaped)
@@ -51,8 +48,8 @@ def predict_ScoreCAM(model: EfficientLRCN, rgb_clip: np.ndarray, post_transforms
         https://github.com/haofanwang/Score-CAM/blob/master/cam/scorecam.py#L52 (official impl)
     Args:
         model: the model
-        rgb_clip: the rgb clip in LHWC
-        post_transforms: normalise the clip with z-scaling
+        clip: the clip as tensor in LCHW
+        rgb_clip: the clip as np.ndarray in LHWC
         A_k: list to store activations
         out: the video writer
         dataset_labels: list of labels as str
@@ -60,7 +57,6 @@ def predict_ScoreCAM(model: EfficientLRCN, rgb_clip: np.ndarray, post_transforms
         batch_size: batch_size for batching the channels for scorecam
         dev: inference device 
     """
-    clip = lhwc2Tensor(rgb_clip, post_transforms).unsqueeze_(0).to(dev) # LHWC -> NLCHW
     with autocast(device_type="cuda"):
         logits = model(clip)
     _, idx = torch.max(logits, dim=1)
