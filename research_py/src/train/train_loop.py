@@ -24,10 +24,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 def run_loop(settings: Settings) -> None:
     """
-    main training loop fn that calls train and test
-
+    main training loop fn (currently no support for ucf101 as it was never finished)
     Args:
-
+        settings: settings for the training
     Returns:
 
     """
@@ -49,12 +48,14 @@ def run_loop(settings: Settings) -> None:
 
 def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray, labels: np.ndarray, plot_container: PlotContainer, settings: Settings) -> None:
     """
-    Training fn that calls validate
-
+    Training fn for stochastic gradient descent, includes trades if enabled (untested), potential for self-adaptive training
     Args:
-
-    Returns:
-
+        train_loader: the DataLoader for training
+        val_loader: the DataLoader for validation
+        samples: the number of samples per class
+        labels: the labels for the samples
+        plot_container: wrapper for the SummaryWriter
+        settings: settings for training
     """
     model = EfficientLRCN(settings)
     model = model.to(settings.train_dev)
@@ -133,11 +134,13 @@ def train(train_loader: DataLoader, val_loader: DataLoader, samples: np.ndarray,
 def validate(model: EfficientLRCN, val_loader: DataLoader, plot_container: PlotContainer, criterion: nn.CrossEntropyLoss, settings: Settings) -> float:
     """
     Validation fn
-
     Args:
-
-    Returns:
-
+        val_loader: DataLoader for validation
+        plot_container: Wrapper for SummaryWriter
+        criterion: the criterion used for training, if SAT is used, it is manually overwritten with epoch = 0
+        settings: the settings for validation
+    Return:
+        float: validation loss
     """
     model.eval()
     validation_loss = 0.0
@@ -168,11 +171,11 @@ def validate(model: EfficientLRCN, val_loader: DataLoader, plot_container: PlotC
 def test(test_loader: DataLoader, samples: np.ndarray, plot_container: PlotContainer, settings: Settings) -> None:
     """
     Testing fn
-
     Args:
-
-    Returns:
-
+        test_loader: DataLoader for testing
+        samples: the number of samples per class
+        plot_container: wrapper for SummaryWriter
+        settings: settings for testing
     """
     print("Starting testing")
     model_name = settings.work_model if settings.train else settings.test_model

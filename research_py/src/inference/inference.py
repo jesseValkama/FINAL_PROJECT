@@ -15,9 +15,10 @@ def run_inference(settings: Settings, cam_name: str = "ScoreCAM", capture_interv
     """
     acknowledgements:
         https://docs.opencv.org/4.x/dd/d43/tutorial_py_video_display.html (video reading and writing)
-    The function for running "inference" as in pre-recorded videos
+    The function for running "inference" as in pre-recorded videos, pytorch DataLoader is not used
+    since normally it should be implented for live video
     Args:
-        settings: the settings
+        settings: the settings for inference
         cam_name: the XAI mode to use either GradCAM or ScoreCAM
         capture_interval: every how many frames to use for the clip that is forward passed
     """
